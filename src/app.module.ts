@@ -7,6 +7,7 @@ import { ZodValidationPipe } from 'nestjs-zod';
 import configuration from './shared/config/configuration';
 import { PrismaModule } from './infrastructure/prisma/prisma.module';
 import { UsersModule } from './modules/users/users.module';
+import { WebhooksModule } from './modules/webhooks/webhooks.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { UsersModule } from './modules/users/users.module';
     }),
     PrismaModule,
     UsersModule,
+    WebhooksModule,
   ],
   providers: [
     {

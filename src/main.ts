@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
+import { json, urlencoded } from 'express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { ZodValidationExceptionFilter } from './shared/filters/zod-validation-exception.filter';
@@ -13,6 +14,16 @@ async function bootstrap() {
   // Use nestjs-pino as global logger
   const logger = app.get(Logger);
   app.useLogger(logger);
+
+  // Preserve raw body for signature verification
+  app.use(
+    json({
+      verify: (req: any, res, buf) => {
+        req.rawBody = buf.toString();
+      },
+    }),
+  );
+  app.use(urlencoded({ extended: true, limit: '10mb' }));
 
   // Security headers
   app.use(helmet());
