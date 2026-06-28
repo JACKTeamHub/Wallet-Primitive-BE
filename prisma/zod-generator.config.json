@@ -1,0 +1,6 @@
+{
+  "output": "./zod",
+  "relationModel": true,
+  "modelSuffix": "Schema",
+  "useDecimalJs": true
+}

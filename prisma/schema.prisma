@@ -1,0 +1,176 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum WalletStatus {
+  ACTIVE
+  FROZEN
+  CLOSED
+  SUSPENDED
+}
+
+enum TempAccountStatus {
+  ACTIVE
+  FUNDED
+  EXPIRED
+  CANCELLED
+}
+
+enum LedgerEntryType {
+  CREDIT
+  DEBIT
+}
+
+enum LedgerEntryStatus {
+  SUCCESS
+  QUARANTINED
+  FAILED
+}
+
+model Workspace {
+  id                String             @id @default(uuid())
+  name              String
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  users             DeveloperUser[]
+  apiKeys           ApiKey[]
+  credential        NombaCredential?
+  customers         Customer[]
+  wallets           Wallet[]
+  tempAccounts      TemporaryAccount[]
+  ledgerEntries     LedgerEntry[]
+  processedWebhooks ProcessedWebhook[]
+  auditLogs         AuditLog[]
+
+  @@map("workspaces")
+}
+
+model DeveloperUser {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  workspaceId  String
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@map("developer_users")
+}
+
+model ApiKey {
+  id          String    @id @default(uuid())
+  keyHash     String    @unique
+  name        String
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("api_keys")
+}
+
+model NombaCredential {
+  id           String    @id @default(uuid())
+  clientId     String // encrypted
+  clientSecret String // encrypted
+  accountId    String // encrypted
+  workspaceId  String    @unique
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@map("nomba_credentials")
+}
+
+model Customer {
+  id          String    @id @default(uuid())
+  email       String
+  name        String
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  wallets     Wallet[]
+
+  @@unique([workspaceId, email])
+  @@map("customers")
+}
+
+model Wallet {
+  id            String         @id @default(uuid())
+  customerId    String
+  customer      Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  workspaceId   String
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  accountNumber String         @unique
+  bankName      String
+  status        WalletStatus   @default(ACTIVE)
+  balance       Decimal        @default(0.00) @db.Decimal(18, 4)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  ledgerEntries LedgerEntry[]
+
+  @@map("wallets")
+}
+
+model TemporaryAccount {
+  id             String            @id @default(uuid())
+  workspaceId    String
+  workspace      Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  accountNumber  String            @unique
+  bankName       String
+  expectedAmount Decimal           @db.Decimal(18, 4)
+  receivedAmount Decimal           @default(0.00) @db.Decimal(18, 4)
+  status         TempAccountStatus @default(ACTIVE)
+  expiresAt      DateTime
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@map("temporary_accounts")
+}
+
+model LedgerEntry {
+  id             String            @id @default(uuid())
+  walletId       String
+  wallet         Wallet            @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  workspaceId    String
+  workspace      Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  type           LedgerEntryType
+  amount         Decimal           @db.Decimal(18, 4)
+  runningBalance Decimal           @db.Decimal(18, 4)
+  status         LedgerEntryStatus @default(SUCCESS)
+  nombaRef       String?
+  sessionId      String?
+  description    String?
+  metadata       Json?
+  createdAt      DateTime          @default(now())
+
+  @@map("ledger_entries")
+}
+
+model ProcessedWebhook {
+  id          String    @id @default(uuid())
+  eventRef    String    @unique
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  processedAt DateTime  @default(now())
+
+  @@map("processed_webhooks")
+}
+
+model AuditLog {
+  id          String    @id @default(uuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  actor       String // "api_key_id" or "user_id" or "system"
+  action      String
+  details     Json?
+  createdAt   DateTime  @default(now())
+
+  @@map("audit_logs")
+}
