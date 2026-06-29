@@ -39,6 +39,8 @@
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/swagger": "^11.4.4",
     "@prisma/client": "^7.8.0",
+    "@prisma/adapter-pg": "^7.8.0",
+    "pg": "^8.13.1",
     "dotenv": "^17.4.2",
     "dotenv-expand": "^13.0.0",
     "helmet": "^8.2.0",
@@ -75,7 +77,9 @@
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.20.0",
     "prisma": "^7.8.0",
-    "@dotenvx/dotenvx": "^1.33.0"
+    "@dotenvx/dotenvx": "^1.33.0",
+    "@types/pg": "^8.11.10",
+    "prisma-zod-generator": "^0.8.0"
   },
   "jest": {
     "moduleFileExtensions": [
