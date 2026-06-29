@@ -6,6 +6,7 @@ import configuration from './shared/config/configuration';
 import { PrismaModule } from './infrastructure/prisma/prisma.module';
 import { AppLoggerModule } from './infrastructure/logger/logger.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
+import { AppController } from './app.controller';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     PrismaModule,
     WebhooksModule,
   ],
+  controllers: [AppController],
   providers: [
     {
       provide: APP_PIPE,
