@@ -1,11 +1,19 @@
-import { Controller, Post, Body, Headers, HttpCode, HttpStatus, Req } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Headers,
+  HttpCode,
+  HttpStatus,
+  Req,
+} from '@nestjs/common';
 import { WebhooksService } from './webhooks.service';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 
 @ApiTags('webhooks')
 @Controller('webhooks')
 export class WebhooksController {
-  constructor(private readonly webhooksService: WebhooksService) { }
+  constructor(private readonly webhooksService: WebhooksService) {}
 
   @Post('nomba')
   @HttpCode(HttpStatus.OK)

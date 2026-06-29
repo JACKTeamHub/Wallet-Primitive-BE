@@ -38,9 +38,7 @@ describe('Users (e2e)', () => {
     it('should return list of users', async () => {
       mockPrismaService.user.findMany.mockResolvedValue([]);
 
-      const res = await request(app.getHttpServer())
-        .get('/users')
-        .expect(200);
+      const res = await request(app.getHttpServer()).get('/users').expect(200);
 
       expect(res.body).toEqual([]);
     });
