@@ -15,6 +15,11 @@ async function bootstrap() {
   const logger = app.get(Logger);
   app.useLogger(logger);
 
+  // Set global API prefix with versioning, excluding root path for health check
+  app.setGlobalPrefix('api/v1', {
+    exclude: ['/'],
+  });
+
   // Preserve raw body for signature verification
   app.use(
     json({
