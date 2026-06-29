@@ -1,4 +1,4 @@
-name: CI Quality Gate
+name: Nomba-BE 
 
 on:
   push:
