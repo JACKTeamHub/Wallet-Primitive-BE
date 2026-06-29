@@ -37,11 +37,11 @@ test-results/
 .nyc_output
 
 # Environment files
-.env
 .env.local
 .env.production
 .env.development
 .env.staging
+.env.keys
 
 # dotenvx keys (CRITICAL: Do NOT commit your private keys)
 .env.keys
@@ -49,3 +49,6 @@ test-results/
 # OS Files
 .DS_Store
 Thumbs.db
+
+# Generated database schemas & client
+/generated/
