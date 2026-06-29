@@ -13,8 +13,8 @@ export class ZodValidationExceptionFilter implements ExceptionFilter {
     const errorResponse = {
       statusCode: status,
       message: 'Validation failed',
-      errors: exception.getZodError().errors.map((err) => ({
-        path: err.path.join('.'),
+      errors: (exception.getZodError() as any).errors.map((err: any) => ({
+        path: Array.isArray(err.path) ? err.path.join('.') : String(err.path),
         message: err.message,
       })),
       path: request.url,
