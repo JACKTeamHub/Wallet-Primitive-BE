@@ -1,13 +1,16 @@
 import { config } from 'dotenv';
 import { expand } from 'dotenv-expand';
+import { defineConfig, env } from 'prisma/config';
 
-const env = config();
-expand(env);
+expand(config());
 
-export default {
-  databaseUrl: process.env.DATABASE_URL,
-  dbName: process.env.DB_NAME,
-  dbUser: process.env.DB_USER,
-  dbPassword: process.env.DB_PASSWORD,
-  dbPort: process.env.DB_PORT,
-};
+export default defineConfig({
+  schema: 'prisma/schema.prisma',
+  migrations: {
+    path: 'prisma/migrations',
+    seed: 'tsx prisma/seeds/seed.ts',
+  },
+  datasource: {
+    url: env('DATABASE_URL'),
+  },
+});

@@ -1,10 +1,17 @@
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+generator client {
+  provider     = "prisma-client"
+  output       = "../generated/prisma"
+  moduleFormat = "cjs"
 }
 
-generator client {
-  provider = "prisma-client-js"
+datasource db {
+  provider = "postgresql"
+}
+
+generator zod {
+  provider = "prisma-zod-generator"
+  config   = "./prisma/zod-generator.config.json"
+  output   = "../generated/zod"
 }
 
 enum WalletStatus {
