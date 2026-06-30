@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { LoggerModule } from 'nestjs-pino';
+import { randomBytes } from 'crypto';
 
 @Module({
   imports: [
@@ -7,6 +8,7 @@ import { LoggerModule } from 'nestjs-pino';
       pinoHttp: {
         name: process.env.APP_NAME || 'Wallet Primitive',
         level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
+        genReqId: () => randomBytes(12).toString('hex'),
         transport: {
           targets: [
             {
