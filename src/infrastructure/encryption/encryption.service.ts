@@ -21,16 +21,18 @@ export class EncryptionService {
     try {
       const iv = crypto.randomBytes(12); // Standard GCM IV length is 12 bytes
       const cipher = crypto.createCipheriv(this.algorithm, this.key, iv);
-      
+
       let encrypted = cipher.update(text, 'utf8', 'hex');
       encrypted += cipher.final('hex');
-      
+
       const authTag = cipher.getAuthTag().toString('hex');
-      
+
       // Output format: iv:authTag:ciphertext
       return `${iv.toString('hex')}:${authTag}:${encrypted}`;
     } catch (error: any) {
-      throw new InternalServerErrorException(`Encryption failed: ${error.message}`);
+      throw new InternalServerErrorException(
+        `Encryption failed: ${error.message}`,
+      );
     }
   }
 
@@ -53,7 +55,9 @@ export class EncryptionService {
 
       return decrypted;
     } catch (error: any) {
-      throw new InternalServerErrorException(`Decryption failed: ${error.message}`);
+      throw new InternalServerErrorException(
+        `Decryption failed: ${error.message}`,
+      );
     }
   }
 }
