@@ -80,7 +80,7 @@
     "prisma": "^7.8.0",
     "@dotenvx/dotenvx": "^1.33.0",
     "@types/pg": "^8.11.10",
-    "prisma-zod-generator": "^0.8.0"
+    "zod-prisma-types": "^3.2.1"
   },
   "jest": {
     "moduleFileExtensions": [

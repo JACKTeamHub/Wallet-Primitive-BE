@@ -1,0 +1,21 @@
+model ProcessedWebhook {
+  id          String    @id @default(uuid())
+  eventRef    String    @unique
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  processedAt DateTime  @default(now())
+
+  @@map("processed_webhooks")
+}
+
+model AuditLog {
+  id          String    @id @default(uuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  actor       String // "api_key_id" or "user_id" or "system"
+  action      String
+  details     Json?
+  createdAt   DateTime  @default(now())
+
+  @@map("audit_logs")
+}
