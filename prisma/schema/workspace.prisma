@@ -1,0 +1,54 @@
+model Workspace {
+  id                String             @id @default(uuid())
+  name              String
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  users             DeveloperUser[]
+  apiKeys           ApiKey[]
+  credential        NombaCredential?
+  customers         Customer[]
+  wallets           Wallet[]
+  tempAccounts      TemporaryAccount[]
+  ledgerEntries     LedgerEntry[]
+  processedWebhooks ProcessedWebhook[]
+  auditLogs         AuditLog[]
+
+  @@map("workspaces")
+}
+
+model DeveloperUser {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  workspaceId  String
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@map("developer_users")
+}
+
+model ApiKey {
+  id          String    @id @default(uuid())
+  keyHash     String    @unique
+  name        String
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("api_keys")
+}
+
+model NombaCredential {
+  id           String    @id @default(uuid())
+  clientId     String // encrypted
+  clientSecret String // encrypted
+  accountId    String // encrypted
+  workspaceId  String    @unique
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@map("nomba_credentials")
+}

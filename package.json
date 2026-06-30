@@ -7,9 +7,9 @@
   "license": "UNLICENSED",
   "scripts": {
     "prebuild": "pnpm run db:generate",
-    "build": "nest build",
+    "build": "node api.js && nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "dotenvx run -- nest start",
+    "start": "node api.js && dotenvx run -- nest start",
     "start:dev": "dotenvx run -- nest start --watch",
     "start:debug": "dotenvx run -- nest start --debug --watch",
     "start:prod": "dotenvx run -- node dist/src/main",
@@ -80,7 +80,7 @@
     "prisma": "^7.8.0",
     "@dotenvx/dotenvx": "^1.33.0",
     "@types/pg": "^8.11.10",
-    "prisma-zod-generator": "^0.8.0"
+    "zod-prisma-types": "^3.2.1"
   },
   "jest": {
     "moduleFileExtensions": [
