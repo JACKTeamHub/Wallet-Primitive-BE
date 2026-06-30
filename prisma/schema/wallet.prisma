@@ -1,0 +1,60 @@
+enum WalletStatus {
+  ACTIVE
+  FROZEN
+  CLOSED
+  SUSPENDED
+}
+
+enum TempAccountStatus {
+  ACTIVE
+  FUNDED
+  EXPIRED
+  CANCELLED
+}
+
+model Customer {
+  id          String    @id @default(uuid())
+  email       String
+  name        String
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  wallets     Wallet[]
+
+  @@unique([workspaceId, email])
+  @@map("customers")
+}
+
+model Wallet {
+  id            String         @id @default(uuid())
+  customerId    String
+  customer      Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  workspaceId   String
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  accountNumber String         @unique
+  bankName      String
+  status        WalletStatus   @default(ACTIVE)
+  balance       Decimal        @default(0.00) @db.Decimal(18, 4)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  ledgerEntries LedgerEntry[]
+
+  @@map("wallets")
+}
+
+model TemporaryAccount {
+  id             String            @id @default(uuid())
+  workspaceId    String
+  workspace      Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  accountNumber  String            @unique
+  bankName       String
+  expectedAmount Decimal           @db.Decimal(18, 4)
+  receivedAmount Decimal           @default(0.00) @db.Decimal(18, 4)
+  status         TempAccountStatus @default(ACTIVE)
+  expiresAt      DateTime
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@map("temporary_accounts")
+}

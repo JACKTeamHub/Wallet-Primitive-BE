@@ -1,0 +1,33 @@
+enum LedgerEntryType {
+  CREDIT
+  DEBIT
+}
+
+enum LedgerEntryStatus {
+  SUCCESS
+  QUARANTINED
+  FAILED
+}
+
+model LedgerEntry {
+  id                   String            @id @default(uuid())
+  walletId             String
+  wallet               Wallet            @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  workspaceId          String
+  workspace            Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  type                 LedgerEntryType
+  amount               Decimal           @db.Decimal(18, 4)
+  runningBalance       Decimal           @db.Decimal(18, 4)
+  status               LedgerEntryStatus @default(SUCCESS)
+  nombaRef             String?
+  sessionId            String?
+  description          String?
+  metadata             Json?
+  createdAt            DateTime          @default(now())
+  relatedLedgerEntryId String?
+  transactionGroupId   String?
+
+  @@index([walletId])
+  @@index([workspaceId])
+  @@map("ledger_entries")
+}
