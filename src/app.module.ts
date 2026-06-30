@@ -5,6 +5,7 @@ import { ZodValidationPipe } from 'nestjs-zod';
 import configuration from './shared/config/configuration';
 import { PrismaModule } from './infrastructure/prisma/prisma.module';
 import { AppLoggerModule } from './infrastructure/logger/logger.module';
+import { EncryptionModule } from './infrastructure/encryption/encryption.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { AppController } from './app.controller';
 
@@ -17,6 +18,7 @@ import { AppController } from './app.controller';
     }),
     AppLoggerModule,
     PrismaModule,
+    EncryptionModule,
     WebhooksModule,
   ],
   controllers: [AppController],
