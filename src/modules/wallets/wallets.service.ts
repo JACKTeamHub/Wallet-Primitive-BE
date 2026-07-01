@@ -10,8 +10,8 @@ import { TransferDto } from './dto/transfer.dto';
 import { UpdateWalletStatusDto } from './dto/update-wallet-status.dto';
 import { Prisma, Wallet, LedgerEntry } from '@generated/prisma/client';
 import { randomUUID } from 'crypto';
+import { AuditLogService } from '@shared/services/audit-log.service';
 
-import { AuditLogService } from '../../shared/services/audit-log.service';
 
 @Injectable()
 export class WalletsService {
@@ -123,7 +123,6 @@ export class WalletsService {
     const transferAmount = new Prisma.Decimal(dto.amount);
 
     return this.prisma.$transaction(async (tx) => {
-      // 1. Fetch and lock sender wallet
       const sender = await tx.wallet.findFirst({
         where: { id: dto.senderWalletId, workspaceId },
       });
@@ -131,7 +130,6 @@ export class WalletsService {
         throw new NotFoundException('Sender wallet not found');
       }
 
-      // 2. Fetch and lock recipient wallet
       const recipient = await tx.wallet.findFirst({
         where: { id: dto.recipientWalletId, workspaceId },
       });
@@ -139,7 +137,6 @@ export class WalletsService {
         throw new NotFoundException('Recipient wallet not found');
       }
 
-      // 3. Verify sender has sufficient funds and status is active
       if (sender.status !== 'ACTIVE') {
         throw new BadRequestException(
           `Sender wallet is ${sender.status.toLowerCase()}`,

@@ -27,7 +27,6 @@ export class AuditLogService {
         },
       });
     } catch (error: any) {
-      // Fail-safe: log warning instead of throwing exception to prevent payment transaction crashes
       this.logger.warn(`Failed to write audit log: ${error.message}`);
     }
   }

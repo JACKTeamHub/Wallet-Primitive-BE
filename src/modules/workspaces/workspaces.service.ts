@@ -5,12 +5,12 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '@infrastructure/prisma/prisma.service';
 import { EncryptionService } from '@infrastructure/encryption/encryption.service';
-import { AuditLogService } from '../../shared/services/audit-log.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { RegisterCredentialsDto } from './dto/register-credentials.dto';
 import { GenerateApiKeyDto } from './dto/generate-api-key.dto';
 import { NombaCredential } from '@generated/prisma/client';
 import * as crypto from 'crypto';
+import { AuditLogService } from '@shared/services/audit-log.service';
 
 @Injectable()
 export class WorkspacesService {
@@ -36,13 +36,11 @@ export class WorkspacesService {
       );
     }
 
-    // 2. Hash password using SHA-256
     const passwordHash = crypto
       .createHash('sha256')
       .update(dto.password)
       .digest('hex');
 
-    // 3. Create Workspace and DeveloperUser in a transaction
     return this.prisma.$transaction(async (tx) => {
       const workspace = await tx.workspace.create({
         data: {
@@ -88,11 +86,9 @@ export class WorkspacesService {
       throw new NotFoundException('Workspace not found');
     }
 
-    // 2. Generate a secure random token prefixed with wp_live_
     const rawKey = `wp_live_${crypto.randomBytes(24).toString('hex')}`;
     const keyHash = crypto.createHash('sha256').update(rawKey).digest('hex');
 
-    // 3. Save key hash to database
     const keyRecord = await this.prisma.apiKey.create({
       data: {
         keyHash,
@@ -182,7 +178,6 @@ export class WorkspacesService {
       ? this.encryption.encrypt(dto.subAccountId)
       : null;
 
-    // 3. Upsert credentials
     const credentials = await this.prisma.nombaCredential.upsert({
       where: { workspaceId },
       update: {
