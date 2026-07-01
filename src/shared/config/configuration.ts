@@ -12,7 +12,7 @@ export const envSchema = z.object({
   DB_PORT: z.coerce.number().default(5432),
   DATABASE_URL: z.string(),
   REDIS_PORT: z.coerce.number().default(6379),
-  NOMBA_WEBHOOK_URL: z.string().url(),
+  NOMBA_WEBHOOK_SECRET: z.string().default('NombaHackathon2026'),
   ENCRYPTION_KEY: z
     .string()
     .length(32, 'Encryption key must be exactly 32 bytes'),
