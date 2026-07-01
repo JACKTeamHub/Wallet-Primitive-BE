@@ -12,7 +12,6 @@ import { Prisma, Wallet, LedgerEntry } from '@generated/prisma/client';
 import { randomUUID } from 'crypto';
 import { AuditLogService } from '@shared/services/audit-log.service';
 
-
 @Injectable()
 export class WalletsService {
   constructor(
