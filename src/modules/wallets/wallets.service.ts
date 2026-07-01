@@ -3,12 +3,12 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { CreateWalletDto } from './dto/create-wallet.dto';
-import { TransferDto } from './dto/transfer.dto';
-import { Prisma } from '@prisma/client';
-import { randomUUID } from 'crypto';
 import { PrismaService } from '@infrastructure/prisma/prisma.service';
 import { NombaService } from '@infrastructure/nomba/nomba.service';
+import { CreateWalletDto } from './dto/create-wallet.dto';
+import { TransferDto } from './dto/transfer.dto';
+import { Prisma, Wallet, LedgerEntry } from '@generated/prisma/client';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class WalletsService {
@@ -17,7 +17,11 @@ export class WalletsService {
     private readonly nombaService: NombaService,
   ) {}
 
-  async createWallet(workspaceId: string, dto: CreateWalletDto) {
+  async createWallet(
+    workspaceId: string,
+    dto: CreateWalletDto,
+  ): Promise<Wallet> {
+    // 1. Verify customer exists and belongs to the workspace
     const customer = await this.prisma.customer.findFirst({
       where: { id: dto.customerId, workspaceId },
     });
@@ -26,8 +30,10 @@ export class WalletsService {
       throw new NotFoundException('Customer not found in this workspace');
     }
 
+    // 2. Generate unique reference for Nomba call
     const accountRef = `wref_${randomUUID()}`;
 
+    // 3. Request virtual account from Nomba
     const virtualAccount = await this.nombaService.createVirtualAccount(
       workspaceId,
       {
@@ -49,7 +55,14 @@ export class WalletsService {
     });
   }
 
-  async getWalletBalance(workspaceId: string, walletId: string) {
+  async getWalletBalance(
+    workspaceId: string,
+    walletId: string,
+  ): Promise<{
+    balance: Prisma.Decimal;
+    accountNumber: string;
+    bankName: string;
+  }> {
     const wallet = await this.prisma.wallet.findFirst({
       where: { id: walletId, workspaceId },
       select: { balance: true, accountNumber: true, bankName: true },
@@ -62,7 +75,11 @@ export class WalletsService {
     return wallet;
   }
 
-  async getWalletLedger(workspaceId: string, walletId: string) {
+  async getWalletLedger(
+    workspaceId: string,
+    walletId: string,
+  ): Promise<LedgerEntry[]> {
+    // Confirm wallet exists
     const wallet = await this.prisma.wallet.findFirst({
       where: { id: walletId, workspaceId },
     });
@@ -77,7 +94,17 @@ export class WalletsService {
     });
   }
 
-  async transfer(workspaceId: string, dto: TransferDto) {
+  async transfer(
+    workspaceId: string,
+    dto: TransferDto,
+  ): Promise<{
+    transactionGroupId: string;
+    amount: number;
+    senderWalletId: string;
+    recipientWalletId: string;
+    status: string;
+    timestamp: Date;
+  }> {
     if (dto.senderWalletId === dto.recipientWalletId) {
       throw new BadRequestException(
         'Sender and recipient wallets must be different',
@@ -87,6 +114,7 @@ export class WalletsService {
     const transferAmount = new Prisma.Decimal(dto.amount);
 
     return this.prisma.$transaction(async (tx) => {
+      // 1. Fetch and lock sender wallet
       const sender = await tx.wallet.findFirst({
         where: { id: dto.senderWalletId, workspaceId },
       });
@@ -94,6 +122,7 @@ export class WalletsService {
         throw new NotFoundException('Sender wallet not found');
       }
 
+      // 2. Fetch and lock recipient wallet
       const recipient = await tx.wallet.findFirst({
         where: { id: dto.recipientWalletId, workspaceId },
       });
@@ -101,6 +130,7 @@ export class WalletsService {
         throw new NotFoundException('Recipient wallet not found');
       }
 
+      // 3. Verify sender has sufficient funds
       if (sender.balance.lt(transferAmount)) {
         throw new BadRequestException('Insufficient wallet balance');
       }
@@ -108,6 +138,7 @@ export class WalletsService {
       const newSenderBalance = sender.balance.sub(transferAmount);
       const newRecipientBalance = recipient.balance.add(transferAmount);
 
+      // 4. Update balances in database
       await tx.wallet.update({
         where: { id: sender.id },
         data: { balance: newSenderBalance },
@@ -118,10 +149,13 @@ export class WalletsService {
         data: { balance: newRecipientBalance },
       });
 
+      // 5. Generate links and IDs
       const transactionGroupId = randomUUID();
       const debitEntryId = randomUUID();
       const creditEntryId = randomUUID();
 
+      // 6. Write double-entry ledger journals
+      // A. Debit Leg
       await tx.ledgerEntry.create({
         data: {
           id: debitEntryId,

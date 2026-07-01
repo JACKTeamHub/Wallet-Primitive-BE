@@ -7,11 +7,12 @@ import {
   Param,
   NotFoundException,
 } from '@nestjs/common';
+import { ApiKeyGuard } from '@shared/guards/api-key.guard';
+import { WorkspaceId } from '@shared/decorators/workspace-id.decorator';
 import { CustomersService } from './customers.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { ApiTags, ApiHeader, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { ApiKeyGuard } from '@shared/guards/api-key.guard';
-import { WorkspaceId } from '@shared/decorators/workspace-id.decorator';
+import { Customer } from '@generated/prisma/client';
 
 @ApiTags('customers')
 @ApiHeader({
@@ -31,19 +32,22 @@ export class CustomersController {
   async create(
     @WorkspaceId() workspaceId: string,
     @Body() dto: CreateCustomerDto,
-  ) {
+  ): Promise<Customer> {
     return this.customersService.create(workspaceId, dto);
   }
 
   @Get()
   @ApiOperation({ summary: 'List all customers in workspace' })
-  async findAll(@WorkspaceId() workspaceId: string) {
+  async findAll(@WorkspaceId() workspaceId: string): Promise<Customer[]> {
     return this.customersService.findAll(workspaceId);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a specific customer details' })
-  async findOne(@WorkspaceId() workspaceId: string, @Param('id') id: string) {
+  async findOne(
+    @WorkspaceId() workspaceId: string,
+    @Param('id') id: string,
+  ): Promise<Customer> {
     const customer = await this.customersService.findOne(workspaceId, id);
     if (!customer) {
       throw new NotFoundException('Customer not found');

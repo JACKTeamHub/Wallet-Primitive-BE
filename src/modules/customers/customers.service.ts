@@ -1,12 +1,13 @@
 import { Injectable, ConflictException } from '@nestjs/common';
-import { CreateCustomerDto } from './dto/create-customer.dto';
 import { PrismaService } from '@infrastructure/prisma/prisma.service';
+import { CreateCustomerDto } from './dto/create-customer.dto';
+import { Customer } from '@generated/prisma/client';
 
 @Injectable()
 export class CustomersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(workspaceId: string, dto: CreateCustomerDto) {
+  async create(workspaceId: string, dto: CreateCustomerDto): Promise<Customer> {
     const existingCustomer = await this.prisma.customer.findUnique({
       where: {
         workspaceId_email: {
@@ -31,14 +32,14 @@ export class CustomersService {
     });
   }
 
-  async findAll(workspaceId: string) {
+  async findAll(workspaceId: string): Promise<Customer[]> {
     return this.prisma.customer.findMany({
       where: { workspaceId },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  async findOne(workspaceId: string, id: string) {
+  async findOne(workspaceId: string, id: string): Promise<Customer | null> {
     return this.prisma.customer.findFirst({
       where: { workspaceId, id },
     });

@@ -1,10 +1,11 @@
 import { Controller, Post, Get, Body, UseGuards, Param } from '@nestjs/common';
+import { ApiKeyGuard } from '@shared/guards/api-key.guard';
+import { WorkspaceId } from '@shared/decorators/workspace-id.decorator';
 import { WalletsService } from './wallets.service';
 import { CreateWalletDto } from './dto/create-wallet.dto';
 import { TransferDto } from './dto/transfer.dto';
 import { ApiTags, ApiHeader, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { ApiKeyGuard } from '@shared/guards/api-key.guard';
-import { WorkspaceId } from '@shared/decorators/workspace-id.decorator';
+import { Wallet, LedgerEntry, Prisma } from '@generated/prisma/client';
 
 @ApiTags('wallets')
 @ApiHeader({
@@ -24,7 +25,7 @@ export class WalletsController {
   async create(
     @WorkspaceId() workspaceId: string,
     @Body() dto: CreateWalletDto,
-  ) {
+  ): Promise<Wallet> {
     return this.walletsService.createWallet(workspaceId, dto);
   }
 
@@ -32,7 +33,17 @@ export class WalletsController {
   @ApiOperation({ summary: 'Execute internal wallet-to-wallet transfer' })
   @ApiResponse({ status: 201, description: 'Transfer executed successfully' })
   @ApiResponse({ status: 400, description: 'Insufficient funds / Bad Request' })
-  async transfer(@WorkspaceId() workspaceId: string, @Body() dto: TransferDto) {
+  async transfer(
+    @WorkspaceId() workspaceId: string,
+    @Body() dto: TransferDto,
+  ): Promise<{
+    transactionGroupId: string;
+    amount: number;
+    senderWalletId: string;
+    recipientWalletId: string;
+    status: string;
+    timestamp: Date;
+  }> {
     return this.walletsService.transfer(workspaceId, dto);
   }
 
@@ -41,13 +52,20 @@ export class WalletsController {
   async getBalance(
     @WorkspaceId() workspaceId: string,
     @Param('id') id: string,
-  ) {
+  ): Promise<{
+    balance: Prisma.Decimal;
+    accountNumber: string;
+    bankName: string;
+  }> {
     return this.walletsService.getWalletBalance(workspaceId, id);
   }
 
   @Get(':id/ledger')
   @ApiOperation({ summary: 'Get transaction history / ledger entries' })
-  async getLedger(@WorkspaceId() workspaceId: string, @Param('id') id: string) {
+  async getLedger(
+    @WorkspaceId() workspaceId: string,
+    @Param('id') id: string,
+  ): Promise<LedgerEntry[]> {
     return this.walletsService.getWalletLedger(workspaceId, id);
   }
 }

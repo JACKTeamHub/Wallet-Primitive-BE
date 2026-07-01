@@ -5,8 +5,8 @@ import {
   BadRequestException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { EncryptionService } from '../encryption/encryption.service';
-import { PrismaService } from '../prisma/prisma.service';
+import { EncryptionService } from '@infrastructure/encryption/encryption.service';
+import { PrismaService } from '@infrastructure/prisma/prisma.service';
 
 @Injectable()
 export class NombaService {
@@ -124,7 +124,7 @@ export class NombaService {
         }),
       });
 
-      const body = (await response.json()) as any;
+      const body = await response.json();
 
       if (!response.ok || body.code !== '00') {
         this.logger.error(
