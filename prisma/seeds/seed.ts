@@ -17,11 +17,16 @@ async function main() {
       name: 'Nomba Hackathon Workspace',
     },
   });
-  console.log(`Workspace created/verified: ${workspace.name} (${workspace.id})`);
+  console.log(
+    `Workspace created/verified: ${workspace.name} (${workspace.id})`,
+  );
 
   // 2. Create Developer User
   // Simple SHA-256 hashing for seed password (or bcrypt hash)
-  const passwordHash = crypto.createHash('sha256').update('password123').digest('hex');
+  const passwordHash = crypto
+    .createHash('sha256')
+    .update('password123')
+    .digest('hex');
   const user = await prisma.developerUser.upsert({
     where: { email: 'dev@nomba.com' },
     update: {},
@@ -45,28 +50,43 @@ async function main() {
       workspaceId: workspace.id,
     },
   });
-  console.log(`API Key seeded: ${rawApiKey} (Use this for Authorization: Bearer ${rawApiKey})`);
+  console.log(
+    `API Key seeded: ${rawApiKey} (Use this for Authorization: Bearer ${rawApiKey})`,
+  );
 
   // 4. Create Encrypted Nomba Credentials
   // Encryption parameters matching AES-256-GCM encryption strategy
-  const fakeNombaCredentials = {
-    clientId: 'nomba-client-id-xyz',
-    clientSecret: 'nomba-client-secret-abc',
-    accountId: 'nomba-account-123',
+  const encryptionKey =
+    process.env.ENCRYPTION_KEY || 'supersecretencryptionkey12345678';
+
+  const encryptHelper = (text: string, keyStr: string): string => {
+    const key = Buffer.from(keyStr, 'utf8');
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+    let encrypted = cipher.update(text, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+    const authTag = cipher.getAuthTag().toString('hex');
+    return `${iv.toString('hex')}:${authTag}:${encrypted}`;
   };
-  
-  // Note: For seed simplicity, we save these plaintext or placeholder encrypted values
+
+  const encryptedClientId = encryptHelper('mock-client-id-xyz', encryptionKey);
+  const encryptedClientSecret = encryptHelper(
+    'mock-client-secret-abc',
+    encryptionKey,
+  );
+  const encryptedAccountId = encryptHelper('mock-account-123', encryptionKey);
+
   await prisma.nombaCredential.upsert({
     where: { workspaceId: workspace.id },
     update: {},
     create: {
-      clientId: fakeNombaCredentials.clientId,
-      clientSecret: fakeNombaCredentials.clientSecret,
-      accountId: fakeNombaCredentials.accountId,
+      clientId: encryptedClientId,
+      clientSecret: encryptedClientSecret,
+      accountId: encryptedAccountId,
       workspaceId: workspace.id,
     },
   });
-  console.log('Seed Nomba Credentials created.');
+  console.log('Seed Nomba Credentials created and encrypted.');
 
   // 5. Create Customer
   const customer = await prisma.customer.upsert({
@@ -98,7 +118,9 @@ async function main() {
       status: 'ACTIVE',
     },
   });
-  console.log(`Persistent Wallet created: ${wallet.accountNumber} (Balance: ${wallet.balance})`);
+  console.log(
+    `Persistent Wallet created: ${wallet.accountNumber} (Balance: ${wallet.balance})`,
+  );
 
   // 7. Add Initial Ledger Entry
   const ledgerCount = await prisma.ledgerEntry.count({

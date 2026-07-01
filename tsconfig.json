@@ -14,7 +14,10 @@
     "sourceMap": true,
     "outDir": "./dist",
     "paths": {
-      "@generated/*": ["./generated/*"]
+      "@generated/*": ["./generated/*"],
+      "@infrastructure/*": ["./src/infrastructure/*"],
+      "@shared/*": ["./src/shared/*"],
+      "@modules/*": ["./src/modules/*"]
     },
     "incremental": true,
     "skipLibCheck": true,
