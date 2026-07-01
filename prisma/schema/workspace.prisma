@@ -45,6 +45,7 @@ model NombaCredential {
   clientId     String // encrypted
   clientSecret String // encrypted
   accountId    String // encrypted
+  subAccountId String? // encrypted
   workspaceId  String    @unique
   workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   createdAt    DateTime  @default(now())
