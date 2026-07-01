@@ -1,9 +1,18 @@
-import { Controller, Post, Get, Body, UseGuards, Param } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Patch,
+  Body,
+  UseGuards,
+  Param,
+} from '@nestjs/common';
 import { ApiKeyGuard } from '@shared/guards/api-key.guard';
 import { WorkspaceId } from '@shared/decorators/workspace-id.decorator';
 import { WalletsService } from './wallets.service';
 import { CreateWalletDto } from './dto/create-wallet.dto';
 import { TransferDto } from './dto/transfer.dto';
+import { UpdateWalletStatusDto } from './dto/update-wallet-status.dto';
 import { ApiTags, ApiHeader, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Wallet, LedgerEntry, Prisma } from '@generated/prisma/client';
 
@@ -67,5 +76,22 @@ export class WalletsController {
     @Param('id') id: string,
   ): Promise<LedgerEntry[]> {
     return this.walletsService.getWalletLedger(workspaceId, id);
+  }
+
+  @Patch(':id/status')
+  @ApiOperation({
+    summary: 'Update wallet status (Freeze, suspend or activate)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Wallet status updated successfully',
+  })
+  @ApiResponse({ status: 404, description: 'Wallet not found' })
+  async updateStatus(
+    @WorkspaceId() workspaceId: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateWalletStatusDto,
+  ): Promise<Wallet> {
+    return this.walletsService.updateWalletStatus(workspaceId, id, dto);
   }
 }

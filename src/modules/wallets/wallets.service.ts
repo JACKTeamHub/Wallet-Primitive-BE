@@ -7,14 +7,18 @@ import { PrismaService } from '@infrastructure/prisma/prisma.service';
 import { NombaService } from '@infrastructure/nomba/nomba.service';
 import { CreateWalletDto } from './dto/create-wallet.dto';
 import { TransferDto } from './dto/transfer.dto';
+import { UpdateWalletStatusDto } from './dto/update-wallet-status.dto';
 import { Prisma, Wallet, LedgerEntry } from '@generated/prisma/client';
 import { randomUUID } from 'crypto';
+
+import { AuditLogService } from '../../shared/services/audit-log.service';
 
 @Injectable()
 export class WalletsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly nombaService: NombaService,
+    private readonly audit: AuditLogService,
   ) {}
 
   async createWallet(
@@ -135,7 +139,19 @@ export class WalletsService {
         throw new NotFoundException('Recipient wallet not found');
       }
 
-      // 3. Verify sender has sufficient funds
+      // 3. Verify sender has sufficient funds and status is active
+      if (sender.status !== 'ACTIVE') {
+        throw new BadRequestException(
+          `Sender wallet is ${sender.status.toLowerCase()}`,
+        );
+      }
+
+      if (recipient.status !== 'ACTIVE') {
+        throw new BadRequestException(
+          `Recipient wallet is ${recipient.status.toLowerCase()}`,
+        );
+      }
+
       if (sender.balance.lt(transferAmount)) {
         throw new BadRequestException('Insufficient wallet balance');
       }
@@ -201,5 +217,35 @@ export class WalletsService {
         timestamp: creditLeg.createdAt,
       };
     });
+  }
+
+  async updateWalletStatus(
+    workspaceId: string,
+    walletId: string,
+    dto: UpdateWalletStatusDto,
+  ): Promise<Wallet> {
+    const wallet = await this.prisma.wallet.findFirst({
+      where: { id: walletId, workspaceId },
+    });
+
+    if (!wallet) {
+      throw new NotFoundException('Wallet not found');
+    }
+
+    const updatedWallet = await this.prisma.wallet.update({
+      where: { id: walletId },
+      data: { status: dto.status },
+    });
+
+    void this.audit.log({
+      workspaceId,
+      action: 'WALLET_STATUS_UPDATED',
+      entity: 'Wallet',
+      entityId: walletId,
+      actor: 'DeveloperConsole',
+      metadata: { newStatus: dto.status },
+    });
+
+    return updatedWallet;
   }
 }
