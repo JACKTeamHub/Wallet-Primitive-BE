@@ -85,6 +85,11 @@ export class NombaService {
       const body = (await response.json()) as {
         data: { access_token: string };
       };
+
+      this.logger.log(
+        `Successfully obtained access token from Nomba. Length: ${body.data.access_token.length}`,
+      );
+
       return body.data.access_token;
     } catch (error: any) {
       if (error instanceof UnauthorizedException) throw error;
