@@ -24,13 +24,17 @@ export class TemporaryAccountsService {
       .substring(0, 19);
 
     const accountRef = `tref_${randomUUID()}`;
-    const accountName = dto.accountName || 'Temporary Checkout';
+    const rawAccountName = dto.accountName || 'Temporary Checkout';
+    const sanitizedAccountName = rawAccountName
+      .replace(/[^a-zA-Z0-9 ]/g, ' ') // replace special characters with space
+      .replace(/\s+/g, ' ') // collapse multiple spaces
+      .trim();
 
     const virtualAccount = await this.nombaService.createVirtualAccount(
       workspaceId,
       {
         accountRef,
-        accountName,
+        accountName: sanitizedAccountName,
         expectedAmount: dto.expectedAmount.toFixed(2),
         expiryDate: formattedExpiryDate,
       },

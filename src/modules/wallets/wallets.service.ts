@@ -34,11 +34,16 @@ export class WalletsService {
     const accountRef = `wref_${randomUUID()}`;
 
     // 3. Request virtual account from Nomba
+    const sanitizedAccountName = customer.name
+      .replace(/[^a-zA-Z0-9 ]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
     const virtualAccount = await this.nombaService.createVirtualAccount(
       workspaceId,
       {
         accountRef,
-        accountName: customer.name,
+        accountName: sanitizedAccountName,
         bvn: dto.bvn,
       },
     );
