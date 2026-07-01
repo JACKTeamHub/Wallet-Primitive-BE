@@ -1,13 +1,4 @@
-import {
-  Controller,
-  Post,
-  Get,
-  Delete,
-  Body,
-  Param,
-  HttpCode,
-  HttpStatus,
-} from '@nestjs/common';
+import { Controller, Post, Get, Body, Param } from '@nestjs/common';
 import { WorkspacesService } from './workspaces.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { RegisterCredentialsDto } from './dto/register-credentials.dto';
@@ -47,18 +38,6 @@ export class WorkspacesController {
     @Param('workspaceId') workspaceId: string,
   ): Promise<{ id: string; name: string; createdAt: Date }[]> {
     return this.workspacesService.getApiKeys(workspaceId);
-  }
-
-  @Delete(':workspaceId/api-keys/:keyId')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Revoke/Delete a specific API key' })
-  @ApiResponse({ status: 204, description: 'API Key deleted successfully' })
-  @ApiResponse({ status: 404, description: 'API key not found' })
-  async deleteApiKey(
-    @Param('workspaceId') workspaceId: string,
-    @Param('keyId') keyId: string,
-  ): Promise<void> {
-    return this.workspacesService.deleteApiKey(workspaceId, keyId);
   }
 
   @Post(':workspaceId/credentials')

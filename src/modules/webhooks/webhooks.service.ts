@@ -41,21 +41,6 @@ export class WebhooksService {
       throw new UnauthorizedException('Missing verification headers');
     }
 
-    // Validate timestamp drift (replay protection) - maximum 5 minutes allowed in production
-    const eventTime = new Date(timestamp);
-    const timeDifference = Math.abs(Date.now() - eventTime.getTime());
-    if (
-      process.env.NODE_ENV === 'production' &&
-      (isNaN(timeDifference) || timeDifference > 5 * 60 * 1000)
-    ) {
-      this.logger.error(
-        `[NOMBA WEBHOOK] Replay attack check failed. Time drift: ${timeDifference}ms`,
-      );
-      throw new UnauthorizedException(
-        'Webhook request expired (time drift exceeds 5 minutes)',
-      );
-    }
-
     const isValid = this.verifySignature(
       payload,
       this.webhookSecret,
