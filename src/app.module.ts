@@ -10,6 +10,7 @@ import { NombaModule } from './infrastructure/nomba/nomba.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { CustomersModule } from './modules/customers/customers.module';
 import { WalletsModule } from './modules/wallets/wallets.module';
+import { TemporaryAccountsModule } from './modules/temporary-accounts/temporary-accounts.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -26,6 +27,7 @@ import { AppController } from './app.controller';
     WebhooksModule,
     CustomersModule,
     WalletsModule,
+    TemporaryAccountsModule,
   ],
   controllers: [AppController],
   providers: [

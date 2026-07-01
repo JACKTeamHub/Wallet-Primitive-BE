@@ -96,6 +96,8 @@ export class NombaService {
       accountRef: string;
       accountName: string;
       bvn?: string;
+      expectedAmount?: string;
+      expiryDate?: string;
     },
   ) {
     const credentials = await this.getDecryptedCredentials(workspaceId);
@@ -120,7 +122,11 @@ export class NombaService {
         body: JSON.stringify({
           accountRef: params.accountRef,
           accountName: params.accountName,
-          bvn: params.bvn || '22222222222', // default sandbox BVN
+          bvn: params.bvn || '22222222222',
+          ...(params.expectedAmount && {
+            expectedAmount: params.expectedAmount,
+          }),
+          ...(params.expiryDate && { expiryDate: params.expiryDate }),
         }),
       });
 

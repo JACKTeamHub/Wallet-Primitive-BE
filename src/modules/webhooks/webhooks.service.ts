@@ -90,58 +90,115 @@ export class WebhooksService {
         where: { accountNumber: aliasAccountNumber },
       });
 
-      if (!wallet) {
-        this.logger.warn(
-          `[NOMBA WEBHOOK] No wallet found matching account number: ${aliasAccountNumber}`,
-        );
-        return {
-          status: 'Not Found',
-          message: 'Matching virtual wallet not found',
-        };
-      }
+      if (wallet) {
+        const creditAmount = new Prisma.Decimal(amount);
 
-      const creditAmount = new Prisma.Decimal(amount);
+        await this.prisma.$transaction(async (tx) => {
+          const currentWallet = await tx.wallet.findUnique({
+            where: { id: wallet.id },
+          });
 
-      await this.prisma.$transaction(async (tx) => {
-        const currentWallet = await tx.wallet.findUnique({
-          where: { id: wallet.id },
+          if (!currentWallet) {
+            throw new NotFoundException('Wallet missing during execution');
+          }
+
+          const newBalance = currentWallet.balance.add(creditAmount);
+
+          await tx.wallet.update({
+            where: { id: wallet.id },
+            data: { balance: newBalance },
+          });
+
+          await tx.processedWebhook.create({
+            data: {
+              eventRef: transactionId,
+              workspaceId: wallet.workspaceId,
+            },
+          });
+
+          await tx.ledgerEntry.create({
+            data: {
+              walletId: wallet.id,
+              workspaceId: wallet.workspaceId,
+              type: 'CREDIT',
+              amount: creditAmount,
+              runningBalance: newBalance,
+              nombaRef: transactionId,
+              sessionId: sessionId || null,
+              description: narration || `Nomba Webhook Deposit of ${amount}`,
+            },
+          });
         });
 
-        if (!currentWallet) {
-          throw new NotFoundException('Wallet missing during execution');
+        this.logger.log(
+          `[NOMBA WEBHOOK] Successfully credited persistent wallet ${wallet.id} with ${amount}.`,
+        );
+      } else {
+        // Look up Temporary Account
+        const tempAccount = await this.prisma.temporaryAccount.findUnique({
+          where: { accountNumber: aliasAccountNumber },
+        });
+
+        if (!tempAccount) {
+          this.logger.warn(
+            `[NOMBA WEBHOOK] No wallet or temporary account found matching account number: ${aliasAccountNumber}`,
+          );
+          return {
+            status: 'Not Found',
+            message: 'Matching virtual account not found',
+          };
         }
 
-        const newBalance = currentWallet.balance.add(creditAmount);
+        if (tempAccount.status === 'EXPIRED') {
+          this.logger.warn(
+            `[NOMBA WEBHOOK] Rejected deposit of ${amount} to expired account: ${aliasAccountNumber}`,
+          );
+          return {
+            status: 'ignored',
+            message: 'Virtual account expired',
+          };
+        }
 
-        await tx.wallet.update({
-          where: { id: wallet.id },
-          data: { balance: newBalance },
+        const creditAmount = new Prisma.Decimal(amount);
+
+        await this.prisma.$transaction(async (tx) => {
+          const currentTempAccount = await tx.temporaryAccount.findUnique({
+            where: { id: tempAccount.id },
+          });
+
+          if (!currentTempAccount) {
+            throw new NotFoundException(
+              'Temporary checkout account missing during execution',
+            );
+          }
+
+          const newReceivedAmount =
+            currentTempAccount.receivedAmount.add(creditAmount);
+          const isFullyFunded = newReceivedAmount.gte(
+            currentTempAccount.expectedAmount,
+          );
+          const newStatus = isFullyFunded ? 'FUNDED' : 'ACTIVE';
+
+          await tx.temporaryAccount.update({
+            where: { id: tempAccount.id },
+            data: {
+              receivedAmount: newReceivedAmount,
+              status: newStatus,
+            },
+          });
+
+          await tx.processedWebhook.create({
+            data: {
+              eventRef: transactionId,
+              workspaceId: tempAccount.workspaceId,
+            },
+          });
         });
 
-        await tx.processedWebhook.create({
-          data: {
-            eventRef: transactionId,
-            workspaceId: wallet.workspaceId,
-          },
-        });
-
-        await tx.ledgerEntry.create({
-          data: {
-            walletId: wallet.id,
-            workspaceId: wallet.workspaceId,
-            type: 'CREDIT',
-            amount: creditAmount,
-            runningBalance: newBalance,
-            nombaRef: transactionId,
-            sessionId: sessionId || null,
-            description: narration || `Nomba Webhook Deposit of ${amount}`,
-          },
-        });
-      });
-
-      this.logger.log(
-        `[NOMBA WEBHOOK] Successfully credited wallet ${wallet.id} with ${amount}.`,
-      );
+        this.logger.log(
+          `[NOMBA WEBHOOK] Successfully credited temporary account ${tempAccount.id} with ${amount}.`,
+        );
+      }
     }
 
     return {
