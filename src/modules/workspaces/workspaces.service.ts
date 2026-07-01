@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '@infrastructure/prisma/prisma.service';
 import { EncryptionService } from '@infrastructure/encryption/encryption.service';
+import { AuditLogService } from '../../shared/services/audit-log.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { RegisterCredentialsDto } from './dto/register-credentials.dto';
 import { GenerateApiKeyDto } from './dto/generate-api-key.dto';
@@ -16,6 +17,7 @@ export class WorkspacesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly encryption: EncryptionService,
+    private readonly audit: AuditLogService,
   ) {}
 
   async createWorkspace(dto: CreateWorkspaceDto): Promise<{
@@ -56,6 +58,15 @@ export class WorkspacesService {
         },
       });
 
+      void this.audit.log({
+        workspaceId: workspace.id,
+        action: 'WORKSPACE_CREATED',
+        entity: 'Workspace',
+        entityId: workspace.id,
+        actor: user.email,
+        metadata: { workspaceName: workspace.name },
+      });
+
       return {
         workspaceId: workspace.id,
         workspaceName: workspace.name,
@@ -90,6 +101,15 @@ export class WorkspacesService {
       },
     });
 
+    void this.audit.log({
+      workspaceId,
+      action: 'API_KEY_GENERATED',
+      entity: 'ApiKey',
+      entityId: keyRecord.id,
+      actor: 'DeveloperConsole',
+      metadata: { keyName: dto.name },
+    });
+
     return {
       rawKey,
       name: keyRecord.name,
@@ -119,6 +139,28 @@ export class WorkspacesService {
     });
   }
 
+  async deleteApiKey(workspaceId: string, keyId: string): Promise<void> {
+    const key = await this.prisma.apiKey.findFirst({
+      where: { id: keyId, workspaceId },
+    });
+
+    if (!key) {
+      throw new NotFoundException('API Key not found');
+    }
+
+    await this.prisma.apiKey.delete({
+      where: { id: keyId },
+    });
+
+    void this.audit.log({
+      workspaceId,
+      action: 'API_KEY_REVOKED',
+      entity: 'ApiKey',
+      entityId: keyId,
+      actor: 'DeveloperConsole',
+    });
+  }
+
   async registerCredentials(
     workspaceId: string,
     dto: RegisterCredentialsDto,
@@ -141,7 +183,7 @@ export class WorkspacesService {
       : null;
 
     // 3. Upsert credentials
-    return this.prisma.nombaCredential.upsert({
+    const credentials = await this.prisma.nombaCredential.upsert({
       where: { workspaceId },
       update: {
         clientId: encryptedClientId,
@@ -157,5 +199,15 @@ export class WorkspacesService {
         workspaceId,
       },
     });
+
+    void this.audit.log({
+      workspaceId,
+      action: 'NOMBA_CREDENTIALS_UPDATED',
+      entity: 'NombaCredential',
+      entityId: credentials.id,
+      actor: 'DeveloperConsole',
+    });
+
+    return credentials;
   }
 }
