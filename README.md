@@ -2,7 +2,78 @@
 
 A secure, multi-tenant B2B payment gateway and double-entry ledger routing engine built on NestJS, integrating directly with **Nomba's Sandbox API**. 
 
-Built for Team **JACK** (Legal Hackathon 2026).
+Built for Team **JACK** (Nomba x DevCareers Hackathon 2026).
+
+---
+
+## 🏗️ System Architecture
+
+The master flow below details how developer requests, webhook alerts, cryptographic security, the database, and Nomba's APIs interact:
+
+```mermaid
+graph TB
+    subgraph Clients ["Integrators & External Servers"]
+        DevServer["Developer Server"]
+        EndUser["End-User Client"]
+    end
+
+    subgraph GW ["Wallet-Primitive Gateway (NestJS Backend)"]
+        %% Request handling
+        AuthGuard["API Key Guard (SHA-256 Hashing)"]
+        
+        subgraph Core ["Core Modules"]
+            WS["Workspaces & Keys Module"]
+            Wallets["Wallets Module"]
+            Transfers["Ledger Transfer Engine"]
+            Checkouts["Temporary Checkouts Module"]
+        end
+
+        subgraph Security ["Security Services"]
+            Enc["AES-256-GCM Encryption"]
+            WebhookSec["HMAC-SHA256 Sig Check & 5m Replay Guard"]
+        end
+
+        subgraph Ledger ["Ledger Engine"]
+            RowLocking["Row-Level Locked DB Transaction"]
+            DoubleEntry["Double-Entry Ledger Log Writer"]
+        end
+    end
+
+    subgraph DB ["Fintech Database (PostgreSQL)"]
+        TableWorkspaces["Workspaces & Credentials"]
+        TableWallets["Customers & Wallets"]
+        TableLedgers["Double-Entry Journals"]
+        TableAuditLogs["Audit Logs"]
+    end
+
+    subgraph Nomba ["Nomba APIs (Sandbox)"]
+        NombaOAuth["OAuth Token Manager"]
+        NombaVA["Virtual Accounts Endpoint (/accounts/virtual)"]
+        NombaWebhookAlerts["Nomba Webhook Dispatcher"]
+    end
+
+    %% Flow arrows
+    DevServer -->|1. Authenticate with Key| AuthGuard
+    AuthGuard -->|Verify Hash| TableWorkspaces
+    
+    DevServer -->|2. Register Nomba Client Secret| WS
+    WS -->|Encrypt Credentials| Enc
+    Enc -->|Save Encrypted Credentials| TableWorkspaces
+    
+    EndUser -->|3. Pay Checkout / Fund Wallet| NombaWebhookAlerts
+    NombaWebhookAlerts -->|4. Push Payment Webhook| WebhookSec
+    WebhookSec -->|5. Verify Signature & Timestamp| TableWorkspaces
+    WebhookSec -->|6. Credit Balance / Set FUNDED| Checkouts
+    
+    DevServer -->|7. Transfer Funds| Transfers
+    Transfers -->|Row Locks & DB Tx| RowLocking
+    RowLocking -->|Debit/Credit Balance| TableWallets
+    RowLocking -->|Write Balanced Debit/Credit Legs| DoubleEntry
+    DoubleEntry -->|Persist Journal Entries| TableLedgers
+    
+    Wallets & Checkouts -->|8. Create Virtual Account| NombaVA
+    NombaVA -->|Authenticate API Call| NombaOAuth
+```
 
 ---
 

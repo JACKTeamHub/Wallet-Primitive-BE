@@ -1,0 +1,48 @@
+{
+  "default_branch": "main",
+  "branches": [
+    "Wallet-Primitive",
+    "Wallet-Primitive-Phase2",
+    "ci/uptime-monitor",
+    "feature/database-setup",
+    "feature/security-cleanup",
+    "feature/temporary-accounts",
+    "feature/wallet-core",
+    "feature/wallet-endpoints",
+    "feature/workspace-endpoints",
+    "main",
+    "quarantine-system",
+    "revert-6-feature/security-cleanup",
+    "webhook-simulator"
+  ],
+  "parent": {
+    "Wallet-Primitive": "main",
+    "Wallet-Primitive-Phase2": "Wallet-Primitive",
+    "ci/uptime-monitor": "main",
+    "feature/database-setup": "main",
+    "feature/security-cleanup": "main",
+    "feature/temporary-accounts": "main",
+    "feature/wallet-core": "main",
+    "feature/wallet-endpoints": "main",
+    "feature/workspace-endpoints": "main",
+    "main": null,
+    "quarantine-system": "main",
+    "revert-6-feature/security-cleanup": "main",
+    "webhook-simulator": "main"
+  },
+  "order": [
+    "main",
+    "Wallet-Primitive",
+    "ci/uptime-monitor",
+    "feature/database-setup",
+    "feature/security-cleanup",
+    "feature/temporary-accounts",
+    "feature/wallet-core",
+    "feature/wallet-endpoints",
+    "feature/workspace-endpoints",
+    "quarantine-system",
+    "revert-6-feature/security-cleanup",
+    "webhook-simulator",
+    "Wallet-Primitive-Phase2"
+  ]
+}
