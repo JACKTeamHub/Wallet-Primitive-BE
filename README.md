@@ -1,4 +1,4 @@
-# Wallet-Primitive
+# Wallet-Primitive (Backend System)
 
 A secure, multi-tenant B2B payment gateway and double-entry ledger routing engine built on NestJS, integrating directly with **Nomba's Sandbox API**. 
 
