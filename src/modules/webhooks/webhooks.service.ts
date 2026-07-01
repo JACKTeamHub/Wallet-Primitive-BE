@@ -1,5 +1,10 @@
 import { PrismaService } from '@infrastructure/prisma/prisma.service';
-import { Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import * as crypto from 'crypto';
@@ -196,5 +201,3 @@ export class WebhooksService {
     }
   }
 }
-
-

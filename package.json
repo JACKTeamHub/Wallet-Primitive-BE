@@ -9,6 +9,7 @@
     "prebuild": "pnpm run db:generate",
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "dotenvx run -- nest start",
     "start:dev": "dotenvx run -- nest start --watch",
     "start:debug": "dotenvx run -- nest start --debug --watch",
