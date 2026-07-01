@@ -20,10 +20,12 @@ export class AuditLogService {
         data: {
           workspaceId: params.workspaceId,
           action: params.action,
-          entity: params.entity,
-          entityId: params.entityId,
           actor: params.actor,
-          metadata: params.metadata || null,
+          details: {
+            entity: params.entity,
+            entityId: params.entityId,
+            metadata: params.metadata ?? null,
+          },
         },
       });
     } catch (error: any) {
