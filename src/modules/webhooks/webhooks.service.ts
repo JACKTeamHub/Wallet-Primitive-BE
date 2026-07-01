@@ -1,5 +1,7 @@
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { PrismaService } from '@infrastructure/prisma/prisma.service';
+import { Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Prisma } from '@prisma/client';
 import * as crypto from 'crypto';
 
 @Injectable()
@@ -7,7 +9,10 @@ export class WebhooksService {
   private readonly logger = new Logger(WebhooksService.name);
   private readonly webhookSecret: string;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly prisma: PrismaService,
+  ) {
     this.webhookSecret =
       this.configService.get<string>('NOMBA_WEBHOOK_SECRET') ||
       'NombaHackathon2026';
@@ -45,6 +50,94 @@ export class WebhooksService {
     this.logger.log(
       `[NOMBA WEBHOOK] Verification successful for RequestID: ${payload.requestId}`,
     );
+
+    if (payload.event_type === 'payment_success') {
+      const transaction = payload.data?.transaction || {};
+      const aliasAccountNumber = transaction.aliasAccountNumber;
+      const amount = transaction.transactionAmount;
+      const transactionId = transaction.transactionId;
+      const sessionId = transaction.sessionId;
+      const narration = transaction.narration;
+
+      if (!aliasAccountNumber || amount === undefined || !transactionId) {
+        this.logger.warn('[NOMBA WEBHOOK] Missing payment details in payload');
+        return {
+          status: 'ignored',
+          message: 'Missing key transaction variables',
+        };
+      }
+
+      const alreadyProcessed = await this.prisma.processedWebhook.findUnique({
+        where: { eventRef: transactionId },
+      });
+
+      if (alreadyProcessed) {
+        this.logger.log(
+          `[NOMBA WEBHOOK] Event ${transactionId} has already been processed. Skipping.`,
+        );
+        return {
+          status: 'success',
+          message: 'Already processed (idempotent)',
+        };
+      }
+
+      const wallet = await this.prisma.wallet.findUnique({
+        where: { accountNumber: aliasAccountNumber },
+      });
+
+      if (!wallet) {
+        this.logger.warn(
+          `[NOMBA WEBHOOK] No wallet found matching account number: ${aliasAccountNumber}`,
+        );
+        return {
+          status: 'Not Found',
+          message: 'Matching virtual wallet not found',
+        };
+      }
+
+      const creditAmount = new Prisma.Decimal(amount);
+
+      await this.prisma.$transaction(async (tx) => {
+        const currentWallet = await tx.wallet.findUnique({
+          where: { id: wallet.id },
+        });
+
+        if (!currentWallet) {
+          throw new NotFoundException('Wallet missing during execution');
+        }
+
+        const newBalance = currentWallet.balance.add(creditAmount);
+
+        await tx.wallet.update({
+          where: { id: wallet.id },
+          data: { balance: newBalance },
+        });
+
+        await tx.processedWebhook.create({
+          data: {
+            eventRef: transactionId,
+            workspaceId: wallet.workspaceId,
+          },
+        });
+
+        await tx.ledgerEntry.create({
+          data: {
+            walletId: wallet.id,
+            workspaceId: wallet.workspaceId,
+            type: 'CREDIT',
+            amount: creditAmount,
+            runningBalance: newBalance,
+            nombaRef: transactionId,
+            sessionId: sessionId || null,
+            description: narration || `Nomba Webhook Deposit of ${amount}`,
+          },
+        });
+      });
+
+      this.logger.log(
+        `[NOMBA WEBHOOK] Successfully credited wallet ${wallet.id} with ${amount}.`,
+      );
+    }
 
     return {
       status: 'success',
@@ -92,7 +185,6 @@ export class WebhooksService {
         `[NOMBA SIGNATURE VERIFICATION] Hashing payload: [${hashingPayload}]`,
       );
 
-      // Generate HMAC SHA256 and convert to Base64
       const hmac = crypto.createHmac('sha256', secret);
       hmac.update(hashingPayload);
       const generatedSignature = hmac.digest('base64');
@@ -104,3 +196,5 @@ export class WebhooksService {
     }
   }
 }
+
+
