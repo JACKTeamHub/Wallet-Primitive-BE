@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Param } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param } from '@nestjs/common';
 import { WorkspacesService } from './workspaces.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { RegisterCredentialsDto } from './dto/register-credentials.dto';
@@ -28,6 +28,16 @@ export class WorkspacesController {
     @Body() dto: GenerateApiKeyDto,
   ): Promise<{ rawKey: string; name: string; createdAt: Date }> {
     return this.workspacesService.generateApiKey(workspaceId, dto);
+  }
+
+  @Get(':workspaceId/api-keys')
+  @ApiOperation({ summary: 'List all API keys in a workspace' })
+  @ApiResponse({ status: 200, description: 'API keys retrieved successfully' })
+  @ApiResponse({ status: 404, description: 'Workspace not found' })
+  async getApiKeys(
+    @Param('workspaceId') workspaceId: string,
+  ): Promise<{ id: string; name: string; createdAt: Date }[]> {
+    return this.workspacesService.getApiKeys(workspaceId);
   }
 
   @Post(':workspaceId/credentials')

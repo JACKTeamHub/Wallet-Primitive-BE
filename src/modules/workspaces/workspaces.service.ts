@@ -97,6 +97,28 @@ export class WorkspacesService {
     };
   }
 
+  async getApiKeys(
+    workspaceId: string,
+  ): Promise<{ id: string; name: string; createdAt: Date }[]> {
+    const workspace = await this.prisma.workspace.findUnique({
+      where: { id: workspaceId },
+    });
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    return this.prisma.apiKey.findMany({
+      where: { workspaceId },
+      select: {
+        id: true,
+        name: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   async registerCredentials(
     workspaceId: string,
     dto: RegisterCredentialsDto,
@@ -114,6 +136,9 @@ export class WorkspacesService {
     const encryptedClientId = this.encryption.encrypt(dto.clientId);
     const encryptedClientSecret = this.encryption.encrypt(dto.clientSecret);
     const encryptedAccountId = this.encryption.encrypt(dto.accountId);
+    const encryptedSubAccountId = dto.subAccountId
+      ? this.encryption.encrypt(dto.subAccountId)
+      : null;
 
     // 3. Upsert credentials
     return this.prisma.nombaCredential.upsert({
@@ -122,11 +147,13 @@ export class WorkspacesService {
         clientId: encryptedClientId,
         clientSecret: encryptedClientSecret,
         accountId: encryptedAccountId,
+        subAccountId: encryptedSubAccountId,
       },
       create: {
         clientId: encryptedClientId,
         clientSecret: encryptedClientSecret,
         accountId: encryptedAccountId,
+        subAccountId: encryptedSubAccountId,
         workspaceId,
       },
     });
