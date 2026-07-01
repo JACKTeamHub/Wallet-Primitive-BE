@@ -34,6 +34,9 @@ export class NombaService {
         clientId: this.encryption.decrypt(credentialRecord.clientId),
         clientSecret: this.encryption.decrypt(credentialRecord.clientSecret),
         accountId: this.encryption.decrypt(credentialRecord.accountId),
+        subAccountId: credentialRecord.subAccountId
+          ? this.encryption.decrypt(credentialRecord.subAccountId)
+          : undefined,
       };
     } catch (error: any) {
       this.logger.error(
@@ -79,8 +82,10 @@ export class NombaService {
         );
       }
 
-      const body = (await response.json()) as { access_token: string };
-      return body.access_token;
+      const body = (await response.json()) as {
+        data: { access_token: string };
+      };
+      return body.data.access_token;
     } catch (error: any) {
       if (error instanceof UnauthorizedException) throw error;
       this.logger.error(`Nomba auth request network error: ${error.message}`);
@@ -112,7 +117,11 @@ export class NombaService {
     }
 
     try {
-      const response = await fetch(`${this.baseUrl}/v1/accounts/virtual`, {
+      const url = credentials.subAccountId
+        ? `${this.baseUrl}/v1/accounts/virtual/${credentials.subAccountId}`
+        : `${this.baseUrl}/v1/accounts/virtual`;
+
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
