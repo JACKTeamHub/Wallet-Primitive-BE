@@ -45,7 +45,7 @@ export class WebhooksService {
     const eventTime = new Date(timestamp);
     const timeDifference = Math.abs(Date.now() - eventTime.getTime());
     if (
-      process.env.NODE_ENV === 'production' &&
+      this.configService.get<string>('NODE_ENV') === 'production' &&
       (isNaN(timeDifference) || timeDifference > 5 * 60 * 1000)
     ) {
       this.logger.error(
