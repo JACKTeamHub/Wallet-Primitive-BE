@@ -6,7 +6,10 @@ import {
   Body,
   UseGuards,
   Param,
+  Res,
+  Query,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { ApiKeyGuard } from '@shared/guards/api-key.guard';
 import { WorkspaceId } from '@shared/decorators/workspace-id.decorator';
 import { WalletsService } from './wallets.service';
@@ -93,5 +96,37 @@ export class WalletsController {
     @Body() dto: UpdateWalletStatusDto,
   ): Promise<Wallet> {
     return this.walletsService.updateWalletStatus(workspaceId, id, dto);
+  }
+
+  @Get(':id/statement/pdf')
+  @ApiOperation({
+    summary: 'Generate wallet transaction statement PDF in a date range',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'PDF statement generated successfully',
+  })
+  @ApiResponse({ status: 404, description: 'Wallet not found' })
+  async getStatementPdf(
+    @WorkspaceId() workspaceId: string,
+    @Res() res: Response,
+    @Param('id') id: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ): Promise<void> {
+    const buffer = await this.walletsService.getWalletStatementPdf(
+      workspaceId,
+      id,
+      startDate,
+      endDate,
+    );
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename=statement-${id}.pdf`,
+      'Content-Length': buffer.length,
+    });
+
+    res.end(buffer);
   }
 }
