@@ -29,14 +29,10 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     const token = parts[1];
-    const jwtSecret = this.configService.get<string>('JWT_SECRET');
+    const jwtSecret = this.configService.get<string>('JWT_SECRET')!;
 
     try {
-      const decoded = jwt.verify(token, jwtSecret) as {
-        userId: string;
-        email: string;
-        workspaceId: string;
-      };
+      const decoded = jwt.verify(token, jwtSecret) as any;
 
       const user = await this.prisma.developerUser.findUnique({
         where: { id: decoded.userId },
