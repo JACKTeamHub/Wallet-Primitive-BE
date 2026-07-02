@@ -22,7 +22,7 @@ import {
   ApiResponse,
   ApiBearerAuth,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
 
 @ApiTags('workspaces')
 @Controller('workspaces')

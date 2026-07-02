@@ -2,8 +2,8 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import * as nodemailer from 'nodemailer';
+import { PrismaService } from '@infrastructure/prisma/prisma.service';
 
 @Processor('email-delivery')
 export class EmailProcessor extends WorkerHost {
@@ -46,7 +46,7 @@ export class EmailProcessor extends WorkerHost {
           port,
           secure,
           auth: { user, pass },
-          connectionTimeout: 10000, 
+          connectionTimeout: 10000,
           socketTimeout: 10000,
         });
       }

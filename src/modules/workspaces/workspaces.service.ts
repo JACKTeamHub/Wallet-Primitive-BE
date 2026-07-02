@@ -23,7 +23,7 @@ import { ConfigService } from '@nestjs/config';
 @Injectable()
 export class WorkspacesService {
   private readonly logger = new Logger(WorkspacesService.name);
-  
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly encryption: EncryptionService,
@@ -213,9 +213,7 @@ export class WorkspacesService {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
 
-    this.logger.log(
-      `[Login OTP] Generated OTP token for ${dto.email}: ${otp}`,
-    );
+    this.logger.log(`[Login OTP] Generated OTP token for ${dto.email}: ${otp}`);
 
     await this.prisma.developerUser.update({
       where: { id: user.id },
