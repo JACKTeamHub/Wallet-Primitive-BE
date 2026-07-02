@@ -13,6 +13,8 @@ export const envSchema = z.object({
   DATABASE_URL: z.string(),
   REDIS_PORT: z.coerce.number().default(6379),
   REDIS_HOST: z.string().default('127.0.0.1'),
+  REDIS_PASSWORD: z.string().optional(),
+  REDIS_TLS: z.string().default('false'),
   NOMBA_WEBHOOK_SECRET: z.string().default('NombaHackathon2026'),
   ENCRYPTION_KEY: z
     .string()

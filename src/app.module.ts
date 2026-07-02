@@ -30,6 +30,10 @@ import { AppController } from './app.controller';
         connection: {
           host: configService.get<string>('REDIS_HOST') || '127.0.0.1',
           port: configService.get<number>('REDIS_PORT') || 6379,
+          password: configService.get<string>('REDIS_PASSWORD'),
+          ...(configService.get<string>('REDIS_TLS') === 'true' && {
+            tls: {},
+          }),
         },
       }),
       inject: [ConfigService],
