@@ -136,4 +136,15 @@ export class WorkspacesController {
   ): Promise<NombaCredential> {
     return this.workspacesService.registerCredentials(workspaceId, dto);
   }
+
+  @Get(':workspaceId/analytics')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get workspace dashboard analytics (Requires JWT)' })
+  @ApiResponse({ status: 200, description: 'Analytics retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Workspace not found' })
+  async getAnalytics(@Param('workspaceId') workspaceId: string) {
+    return this.workspacesService.getWorkspaceAnalytics(workspaceId);
+  }
 }
