@@ -12,10 +12,19 @@ export const envSchema = z.object({
   DB_PORT: z.coerce.number().default(5432),
   DATABASE_URL: z.string(),
   REDIS_PORT: z.coerce.number().default(6379),
+  REDIS_HOST: z.string().default('127.0.0.1'),
   NOMBA_WEBHOOK_SECRET: z.string().default('NombaHackathon2026'),
   ENCRYPTION_KEY: z
     .string()
     .length(32, 'Encryption key must be exactly 32 bytes'),
+  JWT_SECRET: z.string().default('supersecretjwtkey12345'),
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().optional(),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  SMTP_SECURE: z
+    .preprocess((val) => val === 'true', z.boolean())
+    .default(false),
 });
 
 export type Env = z.infer<typeof envSchema>;
