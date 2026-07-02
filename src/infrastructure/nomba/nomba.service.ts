@@ -185,4 +185,60 @@ export class NombaService {
       accountRef,
     };
   }
+
+  async lookupTransaction(
+    workspaceId: string,
+    transactionRef: string,
+  ): Promise<{
+    status: 'SUCCESS' | 'FAILED';
+    amount: number;
+    aliasAccountNumber?: string;
+  }> {
+    const credentials = await this.getDecryptedCredentials(workspaceId);
+
+    if (
+      credentials.clientId.startsWith('mock-') ||
+      credentials.clientSecret.startsWith('mock-')
+    ) {
+      if (transactionRef.startsWith('mock_fail')) {
+        return { status: 'FAILED', amount: 0 };
+      }
+      return {
+        status: 'SUCCESS',
+        amount: 5000,
+        aliasAccountNumber: '7551220992',
+      };
+    }
+
+    const token = await this.getAccessToken(workspaceId);
+
+    try {
+      const url = `${this.baseUrl}/v1/transactions/accounts/single?transactionRef=${transactionRef}`;
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          accountId: credentials.accountId,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Nomba status inquiry failed: ${response.statusText}`);
+      }
+
+      const body = await response.json();
+      const txData = body.data || {};
+      const status = txData.status === 'SUCCESS' ? 'SUCCESS' : 'FAILED';
+      const amount = txData.amount || 0;
+      const aliasAccountNumber = txData.aliasAccountNumber || undefined;
+
+      return { status, amount, aliasAccountNumber };
+    } catch (error: any) {
+      this.logger.error(
+        `[NombaService] Transaction lookup failed: ${error.message}`,
+      );
+      return { status: 'FAILED', amount: 0 };
+    }
+  }
 }

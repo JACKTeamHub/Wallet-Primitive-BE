@@ -2,25 +2,38 @@ import {
   Injectable,
   ConflictException,
   NotFoundException,
+  BadRequestException,
+  UnauthorizedException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '@infrastructure/prisma/prisma.service';
 import { EncryptionService } from '@infrastructure/encryption/encryption.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { RegisterCredentialsDto } from './dto/register-credentials.dto';
 import { GenerateApiKeyDto } from './dto/generate-api-key.dto';
+import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { LoginDto } from './dto/login.dto';
 import { NombaCredential } from '@generated/prisma/client';
 import * as crypto from 'crypto';
+import * as jwt from 'jsonwebtoken';
 import { AuditLogService } from '@shared/services/audit-log.service';
+import { EmailService } from '@infrastructure/email/email.service';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class WorkspacesService {
+  private readonly logger = new Logger(WorkspacesService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly encryption: EncryptionService,
     private readonly audit: AuditLogService,
+    private readonly emailService: EmailService,
+    private readonly configService: ConfigService,
   ) {}
 
   async createWorkspace(dto: CreateWorkspaceDto): Promise<{
+    message: string;
     workspaceId: string;
     workspaceName: string;
     developerEmail: string;
@@ -31,9 +44,44 @@ export class WorkspacesService {
     });
 
     if (existingUser) {
-      throw new ConflictException(
-        'A developer user with this email already exists',
+      if (existingUser.verified) {
+        throw new ConflictException(
+          'A developer user with this email already exists',
+        );
+      }
+
+      // Self-healing: Update unverified user registration and trigger new OTP send
+      const passwordHash = crypto
+        .createHash('sha256')
+        .update(dto.password)
+        .digest('hex');
+
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const otpExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+
+      this.logger.log(
+        `[Signup OTP Retry] Regenerated OTP token for unverified user ${dto.email}: ${otp}`,
       );
+
+      await this.prisma.developerUser.update({
+        where: { id: existingUser.id },
+        data: {
+          passwordHash,
+          otpCode: otp,
+          otpExpiresAt,
+        },
+      });
+
+      // Queue verification email via BullMQ
+      await this.emailService.sendVerificationEmail(dto.email, otp);
+
+      return {
+        message:
+          'Workspace registration updated. A new verification OTP has been sent to your email.',
+        workspaceId: existingUser.workspaceId,
+        workspaceName: dto.name,
+        developerEmail: dto.email,
+      };
     }
 
     const passwordHash = crypto
@@ -41,7 +89,15 @@ export class WorkspacesService {
       .update(dto.password)
       .digest('hex');
 
-    return this.prisma.$transaction(async (tx) => {
+    // Generate 6-digit onboarding OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+
+    this.logger.log(
+      `[Signup OTP] Generated OTP token for ${dto.email}: ${otp}`,
+    );
+
+    const result = await this.prisma.$transaction(async (tx) => {
       const workspace = await tx.workspace.create({
         data: {
           name: dto.name,
@@ -53,6 +109,9 @@ export class WorkspacesService {
           email: dto.email,
           passwordHash,
           workspaceId: workspace.id,
+          verified: false,
+          otpCode: otp,
+          otpExpiresAt,
         },
       });
 
@@ -71,6 +130,150 @@ export class WorkspacesService {
         developerEmail: user.email,
       };
     });
+
+    // Queue verification email via BullMQ
+    await this.emailService.sendVerificationEmail(dto.email, otp);
+
+    return {
+      message:
+        'Workspace registered successfully. A verification OTP has been sent to your email.',
+      ...result,
+    };
+  }
+
+  async verifyOnboardingOtp(dto: VerifyOtpDto): Promise<{ message: string }> {
+    const user = await this.prisma.developerUser.findUnique({
+      where: { email: dto.email },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Developer user not found');
+    }
+
+    if (user.verified) {
+      throw new BadRequestException('Developer account is already verified');
+    }
+
+    if (
+      !user.otpCode ||
+      user.otpCode !== dto.otp ||
+      !user.otpExpiresAt ||
+      user.otpExpiresAt < new Date()
+    ) {
+      throw new BadRequestException('Invalid or expired OTP');
+    }
+
+    await this.prisma.developerUser.update({
+      where: { id: user.id },
+      data: {
+        verified: true,
+        otpCode: null,
+        otpExpiresAt: null,
+      },
+    });
+
+    void this.audit.log({
+      workspaceId: user.workspaceId,
+      action: 'DEVELOPER_ACTIVATED',
+      entity: 'DeveloperUser',
+      entityId: user.id,
+      actor: user.email,
+    });
+
+    return {
+      message: 'Developer account verified and activated successfully.',
+    };
+  }
+
+  async loginRequest(dto: LoginDto): Promise<{ message: string }> {
+    const user = await this.prisma.developerUser.findUnique({
+      where: { email: dto.email },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    const passwordHash = crypto
+      .createHash('sha256')
+      .update(dto.password)
+      .digest('hex');
+
+    if (user.passwordHash !== passwordHash) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    if (!user.verified) {
+      throw new UnauthorizedException(
+        'Developer account is not active. Please verify your email first.',
+      );
+    }
+
+    // Generate 6-digit login OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+
+    this.logger.log(`[Login OTP] Generated OTP token for ${dto.email}: ${otp}`);
+
+    await this.prisma.developerUser.update({
+      where: { id: user.id },
+      data: {
+        otpCode: otp,
+        otpExpiresAt,
+      },
+    });
+
+    // Queue OTP email via BullMQ
+    await this.emailService.sendOtpEmail(user.email, otp);
+
+    return { message: 'Security verification OTP sent to your email.' };
+  }
+
+  async loginVerify(
+    dto: VerifyOtpDto,
+  ): Promise<{ access_token: string; workspaceId: string }> {
+    const user = await this.prisma.developerUser.findUnique({
+      where: { email: dto.email },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid email or OTP');
+    }
+
+    if (
+      !user.otpCode ||
+      user.otpCode !== dto.otp ||
+      !user.otpExpiresAt ||
+      user.otpExpiresAt < new Date()
+    ) {
+      throw new BadRequestException('Invalid or expired OTP');
+    }
+
+    // Clear OTP
+    await this.prisma.developerUser.update({
+      where: { id: user.id },
+      data: {
+        otpCode: null,
+        otpExpiresAt: null,
+      },
+    });
+
+    const jwtSecret = this.configService.get<string>('JWT_SECRET')!;
+    const access_token = jwt.sign(
+      { userId: user.id, email: user.email, workspaceId: user.workspaceId },
+      jwtSecret,
+      { expiresIn: '1d' },
+    );
+
+    void this.audit.log({
+      workspaceId: user.workspaceId,
+      action: 'DEVELOPER_LOGIN',
+      entity: 'DeveloperUser',
+      entityId: user.id,
+      actor: user.email,
+    });
+
+    return { access_token, workspaceId: user.workspaceId };
   }
 
   async generateApiKey(
@@ -204,5 +407,76 @@ export class WorkspacesService {
     });
 
     return credentials;
+  }
+
+  async getWorkspaceAnalytics(workspaceId: string) {
+    const workspace = await this.prisma.workspace.findUnique({
+      where: { id: workspaceId },
+    });
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    const [
+      totalCustomers,
+      walletAccountsCount,
+      tempAccountsCount,
+      totalProcessedWebhooks,
+      creditSum,
+      debitSum,
+      balanceSum,
+      fundedCheckouts,
+      ledgerTransactionCount,
+    ] = await Promise.all([
+      this.prisma.customer.count({ where: { workspaceId } }),
+      this.prisma.wallet.count({ where: { workspaceId } }),
+      this.prisma.temporaryAccount.count({ where: { workspaceId } }),
+      this.prisma.processedWebhook.count({ where: { workspaceId } }),
+      this.prisma.ledgerEntry.aggregate({
+        where: { workspaceId, type: 'CREDIT' },
+        _sum: { amount: true },
+      }),
+      this.prisma.ledgerEntry.aggregate({
+        where: { workspaceId, type: 'DEBIT' },
+        _sum: { amount: true },
+      }),
+      this.prisma.wallet.aggregate({
+        where: { workspaceId },
+        _sum: { balance: true },
+      }),
+      this.prisma.temporaryAccount.count({
+        where: { workspaceId, status: 'FUNDED' },
+      }),
+      this.prisma.ledgerEntry.count({ where: { workspaceId } }),
+    ]);
+
+    const totalAccounts = walletAccountsCount + tempAccountsCount;
+    const inboundVolume = creditSum._sum.amount
+      ? creditSum._sum.amount.toNumber()
+      : 0;
+    const outboundVolume = debitSum._sum.amount
+      ? debitSum._sum.amount.toNumber()
+      : 0;
+    const netLiquidity = balanceSum._sum.balance
+      ? balanceSum._sum.balance.toNumber()
+      : 0;
+    const checkoutSuccessRate =
+      tempAccountsCount > 0
+        ? parseFloat(((fundedCheckouts / tempAccountsCount) * 100).toFixed(2))
+        : 0;
+
+    return {
+      totalCustomers,
+      totalAccounts,
+      walletAccountsCount,
+      tempAccountsCount,
+      inboundVolume,
+      outboundVolume,
+      netLiquidity,
+      totalProcessedWebhooks,
+      checkoutSuccessRate,
+      ledgerTransactionCount,
+    };
   }
 }

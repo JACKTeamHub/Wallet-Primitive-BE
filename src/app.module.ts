@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_PIPE } from '@nestjs/core';
 import { ZodValidationPipe } from 'nestjs-zod';
 import configuration from './shared/config/configuration';
@@ -12,6 +12,9 @@ import { CustomersModule } from './modules/customers/customers.module';
 import { WalletsModule } from './modules/wallets/wallets.module';
 import { TemporaryAccountsModule } from './modules/temporary-accounts/temporary-accounts.module';
 import { WorkspacesModule } from './modules/workspaces/workspaces.module';
+import { EmailModule } from './infrastructure/email/email.module';
+import { BullModule } from '@nestjs/bullmq';
+import { ReconciliationModule } from './modules/reconciliation/reconciliation.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -20,6 +23,16 @@ import { AppController } from './app.controller';
       isGlobal: true,
       load: [configuration],
       expandVariables: true,
+    }),
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => ({
+        connection: {
+          host: configService.get<string>('REDIS_HOST') || '127.0.0.1',
+          port: configService.get<number>('REDIS_PORT') || 6379,
+        },
+      }),
+      inject: [ConfigService],
     }),
     AppLoggerModule,
     PrismaModule,
@@ -30,6 +43,8 @@ import { AppController } from './app.controller';
     WalletsModule,
     TemporaryAccountsModule,
     WorkspacesModule,
+    EmailModule,
+    ReconciliationModule,
   ],
   controllers: [AppController],
   providers: [
