@@ -20,7 +20,7 @@ model DeveloperUser {
   id           String    @id @default(uuid())
   email        String    @unique
   passwordHash String
-  isActive     Boolean   @default(false)
+  verified     Boolean   @default(false)
   otpCode      String?
   otpExpiresAt DateTime?
   workspaceId  String
