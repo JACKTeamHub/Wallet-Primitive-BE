@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_PIPE } from '@nestjs/core';
 import { ZodValidationPipe } from 'nestjs-zod';
 import configuration from './shared/config/configuration';
@@ -24,11 +24,15 @@ import { AppController } from './app.controller';
       load: [configuration],
       expandVariables: true,
     }),
-    BullModule.forRoot({
-      connection: {
-        host: process.env.REDIS_HOST || '127.0.0.1',
-        port: parseInt(process.env.REDIS_PORT || '6379', 10),
-      },
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => ({
+        connection: {
+          host: configService.get<string>('REDIS_HOST') || '127.0.0.1',
+          port: configService.get<number>('REDIS_PORT') || 6379,
+        },
+      }),
+      inject: [ConfigService],
     }),
     AppLoggerModule,
     PrismaModule,

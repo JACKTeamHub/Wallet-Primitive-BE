@@ -5,11 +5,15 @@ import {
   ExecutionContext,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as jwt from 'jsonwebtoken';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
@@ -25,7 +29,7 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     const token = parts[1];
-    const jwtSecret = process.env.JWT_SECRET || 'supersecretjwtkey12345';
+    const jwtSecret = this.configService.get<string>('JWT_SECRET');
 
     try {
       const decoded = jwt.verify(token, jwtSecret) as {
@@ -43,8 +47,8 @@ export class JwtAuthGuard implements CanActivate {
         throw new UnauthorizedException('User not found');
       }
 
-      if (!user.isActive) {
-        throw new UnauthorizedException('Account not activated');
+      if (!user.verified) {
+        throw new UnauthorizedException('Account not verified');
       }
 
       request.user = user;
