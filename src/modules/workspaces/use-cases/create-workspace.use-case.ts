@@ -3,7 +3,7 @@ import { PrismaService } from '@infrastructure/prisma/prisma.service';
 import { CreateWorkspaceDto } from '../dto/create-workspace.dto';
 import { EmailService } from '@infrastructure/email/email.service';
 import { AuditLogService } from '@shared/services/audit-log.service';
-import * as crypto from 'crypto';
+import { hashPassword } from '../../../shared/utils/hash.util';
 
 @Injectable()
 export class CreateWorkspaceUseCase {
@@ -33,18 +33,16 @@ export class CreateWorkspaceUseCase {
         );
       }
 
-      // Self-healing: Update unverified user registration and trigger new OTP send
-      const passwordHash = crypto
-        .createHash('sha256')
-        .update(dto.password)
-        .digest('hex');
+      const passwordHash = hashPassword(dto.password);
 
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
       const otpExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
 
-      this.logger.log(
-        `[Signup OTP Retry] Regenerated OTP token for unverified user ${dto.email}: ${otp}`,
-      );
+      if (process.env.NODE_ENV !== 'production') {
+        this.logger.log(
+          `[Signup OTP Retry] Regenerated OTP token for unverified user ${dto.email}: ${otp}`,
+        );
+      }
 
       await this.prisma.developerUser.update({
         where: { id: existingUser.id },
@@ -67,18 +65,17 @@ export class CreateWorkspaceUseCase {
       };
     }
 
-    const passwordHash = crypto
-      .createHash('sha256')
-      .update(dto.password)
-      .digest('hex');
+    const passwordHash = hashPassword(dto.password);
 
     // Generate 6-digit onboarding OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
 
-    this.logger.log(
-      `[Signup OTP] Generated OTP token for ${dto.email}: ${otp}`,
-    );
+    if (process.env.NODE_ENV !== 'production') {
+      this.logger.log(
+        `[Signup OTP] Generated OTP token for ${dto.email}: ${otp}`,
+      );
+    }
 
     const result = await this.prisma.$transaction(async (tx) => {
       const workspace = await tx.workspace.create({

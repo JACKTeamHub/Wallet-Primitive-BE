@@ -159,6 +159,12 @@ export class HandleNombaWebhookUseCase {
                 nombaRef: transactionId,
                 sessionId: sessionId || null,
                 description: narration || `Quarantined Deposit: ${quarantineReason}`,
+                metadata: {
+                  senderName: payload.data?.transaction?.senderName || null,
+                  senderBankName: payload.data?.transaction?.senderBankName || null,
+                  senderAccountNumber: payload.data?.transaction?.senderAccountNumber || null,
+                  rawPayload: payload.data || null,
+                },
               },
             });
           });
@@ -202,6 +208,12 @@ export class HandleNombaWebhookUseCase {
               nombaRef: transactionId,
               sessionId: sessionId || null,
               description: narration || `Nomba Webhook Deposit of ${amount}`,
+              metadata: {
+                senderName: payload.data?.transaction?.senderName || null,
+                senderBankName: payload.data?.transaction?.senderBankName || null,
+                senderAccountNumber: payload.data?.transaction?.senderAccountNumber || null,
+                rawPayload: payload.data || null,
+              },
             },
           });
         });
@@ -219,10 +231,7 @@ export class HandleNombaWebhookUseCase {
           this.logger.warn(
             `[NOMBA WEBHOOK] No wallet or temporary account found matching account number: ${aliasAccountNumber}`,
           );
-          return {
-            status: 'Not Found',
-            message: 'Matching virtual account not found',
-          };
+          throw new NotFoundException('Matching virtual account not found');
         }
 
         if (tempAccount.status === 'EXPIRED') {

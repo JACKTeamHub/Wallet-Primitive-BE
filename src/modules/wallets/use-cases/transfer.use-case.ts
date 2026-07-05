@@ -3,11 +3,15 @@ import { PrismaService } from '@infrastructure/prisma/prisma.service';
 import { Prisma } from '@generated/prisma/client';
 import { TransferDto } from '../dto/transfer.dto';
 import { KYC_LIMITS } from '../../../shared/utils/kyc-limits.util';
+import { AuditLogService } from '@shared/services/audit-log.service';
 import { randomUUID } from 'crypto';
 
 @Injectable()
 export class TransferUseCase {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditLogService,
+  ) {}
 
   async execute(
     workspaceId: string,
@@ -136,6 +140,19 @@ export class TransferUseCase {
             dto.description || `Transfer from ${sender.accountNumber}`,
           transactionGroupId,
           relatedLedgerEntryId: debitEntryId,
+        },
+      });
+
+      void this.audit.log({
+        workspaceId,
+        action: 'WALLET_TRANSFER_EXECUTED',
+        entity: 'LedgerEntry',
+        entityId: transactionGroupId,
+        actor: 'DeveloperConsole',
+        metadata: {
+          senderWalletId: sender.id,
+          recipientWalletId: recipient.id,
+          amount: transferAmount.toNumber(),
         },
       });
 

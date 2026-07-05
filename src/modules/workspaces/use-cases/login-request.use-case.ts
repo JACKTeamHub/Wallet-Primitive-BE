@@ -2,7 +2,7 @@ import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { PrismaService } from '@infrastructure/prisma/prisma.service';
 import { LoginDto } from '../dto/login.dto';
 import { EmailService } from '@infrastructure/email/email.service';
-import * as crypto from 'crypto';
+import { comparePassword } from '@shared/utils/hash.util';
 
 @Injectable()
 export class LoginRequestUseCase {
@@ -22,12 +22,7 @@ export class LoginRequestUseCase {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    const passwordHash = crypto
-      .createHash('sha256')
-      .update(dto.password)
-      .digest('hex');
-
-    if (user.passwordHash !== passwordHash) {
+    if (!comparePassword(dto.password, user.passwordHash)) {
       throw new UnauthorizedException('Invalid email or password');
     }
 
@@ -41,7 +36,9 @@ export class LoginRequestUseCase {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
 
-    this.logger.log(`[Login OTP] Generated OTP token for ${dto.email}: ${otp}`);
+    if (process.env.NODE_ENV !== 'production') {
+      this.logger.log(`[Login OTP] Generated OTP token for ${dto.email}: ${otp}`);
+    }
 
     await this.prisma.developerUser.update({
       where: { id: user.id },

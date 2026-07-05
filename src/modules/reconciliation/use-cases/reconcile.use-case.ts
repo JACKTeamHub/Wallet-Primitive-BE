@@ -3,6 +3,7 @@ import { PrismaService } from '@infrastructure/prisma/prisma.service';
 import { NombaService } from '@infrastructure/nomba/nomba.service';
 import { ReconcileDto } from '../dto/reconcile.dto';
 import { Prisma } from '@generated/prisma/client';
+import { AuditLogService } from '@shared/services/audit-log.service';
 import { randomUUID } from 'crypto';
 
 @Injectable()
@@ -12,6 +13,7 @@ export class ReconcileUseCase {
   constructor(
     private readonly prisma: PrismaService,
     private readonly nomba: NombaService,
+    private readonly audit: AuditLogService,
   ) {}
 
   async execute(workspaceId: string, dto: ReconcileDto) {
@@ -25,10 +27,10 @@ export class ReconcileUseCase {
       where: { eventRef: transactionId },
     });
 
-    if (alreadyProcessed && action === 'CREDIT') {
+    if (alreadyProcessed) {
       return {
         status: 'ALREADY_PROCESSED',
-        message: 'This transaction was already credited and processed.',
+        message: 'This transaction was already processed.',
         transactionId,
       };
     }
@@ -111,6 +113,15 @@ export class ReconcileUseCase {
           },
         });
 
+        void this.audit.log({
+          workspaceId,
+          action: 'RECONCILIATION_COMPLETED',
+          entity: 'LedgerEntry',
+          entityId: ledgerId,
+          actor: 'DeveloperConsole',
+          metadata: { action, amount: amount.toNumber(), walletId: wallet.id },
+        });
+
         return {
           status: 'RECONCILED',
           action: 'CREDIT',
@@ -125,10 +136,29 @@ export class ReconcileUseCase {
           );
         }
 
+        const doubleCheckFlag = await tx.processedWebhook.findUnique({
+          where: { eventRef: transactionId },
+        });
+        if (doubleCheckFlag) {
+          return {
+            status: 'ALREADY_PROCESSED',
+            message:
+              'This transaction was already processed.',
+            transactionId,
+          };
+        }
+
         const newBalance = freshWallet.balance.sub(amount);
         await tx.wallet.update({
           where: { id: wallet.id },
           data: { balance: newBalance },
+        });
+
+        await tx.processedWebhook.create({
+          data: {
+            eventRef: transactionId,
+            workspaceId,
+          },
         });
 
         const ledgerId = randomUUID();
@@ -142,6 +172,15 @@ export class ReconcileUseCase {
             runningBalance: newBalance,
             description: `Reconciliation refund debit for reference: ${transactionId}`,
           },
+        });
+
+        void this.audit.log({
+          workspaceId,
+          action: 'RECONCILIATION_COMPLETED',
+          entity: 'LedgerEntry',
+          entityId: ledgerId,
+          actor: 'DeveloperConsole',
+          metadata: { action, amount: amount.toNumber(), walletId: wallet.id },
         });
 
         return {

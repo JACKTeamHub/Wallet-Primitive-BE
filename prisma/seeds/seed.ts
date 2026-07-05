@@ -21,10 +21,10 @@ async function main() {
     return `${iv.toString('hex')}:${authTag}:${encrypted}`;
   };
 
-  const passwordHash = crypto
-    .createHash('sha256')
-    .update('password123')
-    .digest('hex');
+  const salt = crypto.randomBytes(16).toString('hex');
+  const passwordHash = `${salt}:${crypto
+    .pbkdf2Sync('password123', salt, 10000, 64, 'sha512')
+    .toString('hex')}`;
 
   // Define workspaces to seed
   const workspacesData = [
