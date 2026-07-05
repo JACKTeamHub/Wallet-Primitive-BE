@@ -197,8 +197,8 @@ export class NombaService {
     const credentials = await this.getDecryptedCredentials(workspaceId);
 
     if (
-      credentials.clientId.startsWith('mock-') ||
-      credentials.clientSecret.startsWith('mock-')
+      credentials.clientId.startsWith('mock') ||
+      credentials.clientSecret.startsWith('mock')
     ) {
       if (transactionRef.startsWith('mock_fail')) {
         return { status: 'FAILED', amount: 0 };
@@ -238,7 +238,9 @@ export class NombaService {
       this.logger.error(
         `[NombaService] Transaction lookup failed: ${error.message}`,
       );
-      return { status: 'FAILED', amount: 0 };
+      throw new InternalServerErrorException(
+        `Failed to verify transaction with Nomba: ${error.message}`,
+      );
     }
   }
 }

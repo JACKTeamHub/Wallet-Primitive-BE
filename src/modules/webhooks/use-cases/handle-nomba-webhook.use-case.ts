@@ -1,17 +1,18 @@
-import { PrismaService } from '@infrastructure/prisma/prisma.service';
 import {
   Injectable,
   Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { PrismaService } from '@infrastructure/prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@generated/prisma/client';
+import { KYC_LIMITS } from '../../../shared/utils/kyc-limits.util';
 import * as crypto from 'crypto';
 
 @Injectable()
-export class WebhooksService {
-  private readonly logger = new Logger(WebhooksService.name);
+export class HandleNombaWebhookUseCase {
+  private readonly logger = new Logger(HandleNombaWebhookUseCase.name);
   private readonly webhookSecret: string;
 
   constructor(
@@ -23,10 +24,7 @@ export class WebhooksService {
       'NombaHackathon2026';
   }
 
-  async handleNombaWebhook(
-    payload: Record<string, any>,
-    headers: Record<string, string>,
-  ) {
+  async execute(payload: Record<string, any>, headers: Record<string, string>) {
     const signature = headers['nomba-signature'];
     const timestamp = headers['nomba-timestamp'];
 
@@ -108,6 +106,82 @@ export class WebhooksService {
       if (wallet) {
         const creditAmount = new Prisma.Decimal(amount);
 
+        const limits = KYC_LIMITS[wallet.kycTier];
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+
+        // Fetch daily credit sum
+        const aggregate = await this.prisma.ledgerEntry.aggregate({
+          where: {
+            walletId: wallet.id,
+            type: 'CREDIT',
+            status: 'SUCCESS',
+            createdAt: { gte: startOfDay },
+          },
+          _sum: { amount: true },
+        });
+
+        const dailySum = (aggregate._sum.amount || new Prisma.Decimal(0)).add(
+          creditAmount,
+        );
+        const exceedsSingleLimit = creditAmount.gt(limits.singleTxLimit);
+        const exceedsDailyLimit = dailySum.gt(limits.dailyLimit);
+
+        if (
+          wallet.status === 'FROZEN' ||
+          wallet.status === 'CLOSED' ||
+          exceedsSingleLimit ||
+          exceedsDailyLimit
+        ) {
+          let quarantineReason = `Wallet is ${wallet.status}`;
+          if (exceedsSingleLimit) {
+            quarantineReason = `Exceeds single transaction limit of NGN ${limits.singleTxLimit.toFixed(2)} for ${wallet.kycTier}`;
+          } else if (exceedsDailyLimit) {
+            quarantineReason = `Exceeds daily deposit limit of NGN ${limits.dailyLimit.toFixed(2)} for ${wallet.kycTier}`;
+          }
+
+          this.logger.warn(
+            `[NOMBA WEBHOOK] Wallet ${wallet.id} transaction quarantined. Reason: ${quarantineReason}.`,
+          );
+
+          await this.prisma.$transaction(async (tx) => {
+            await tx.processedWebhook.create({
+              data: {
+                eventRef: transactionId,
+                workspaceId: wallet.workspaceId,
+              },
+            });
+
+            await tx.ledgerEntry.create({
+              data: {
+                walletId: wallet.id,
+                workspaceId: wallet.workspaceId,
+                type: 'CREDIT',
+                amount: creditAmount,
+                runningBalance: wallet.balance, // Balance does not increase
+                status: 'QUARANTINED',
+                nombaRef: transactionId,
+                sessionId: sessionId || null,
+                description:
+                  narration || `Quarantined Deposit: ${quarantineReason}`,
+                metadata: {
+                  senderName: payload.data?.transaction?.senderName || null,
+                  senderBankName:
+                    payload.data?.transaction?.senderBankName || null,
+                  senderAccountNumber:
+                    payload.data?.transaction?.senderAccountNumber || null,
+                  rawPayload: payload.data || null,
+                },
+              },
+            });
+          });
+
+          return {
+            status: 'quarantined',
+            message: `Deposit quarantined: ${quarantineReason}`,
+          };
+        }
+
         await this.prisma.$transaction(async (tx) => {
           const currentWallet = await tx.wallet.findUnique({
             where: { id: wallet.id },
@@ -141,6 +215,14 @@ export class WebhooksService {
               nombaRef: transactionId,
               sessionId: sessionId || null,
               description: narration || `Nomba Webhook Deposit of ${amount}`,
+              metadata: {
+                senderName: payload.data?.transaction?.senderName || null,
+                senderBankName:
+                  payload.data?.transaction?.senderBankName || null,
+                senderAccountNumber:
+                  payload.data?.transaction?.senderAccountNumber || null,
+                rawPayload: payload.data || null,
+              },
             },
           });
         });
@@ -158,10 +240,7 @@ export class WebhooksService {
           this.logger.warn(
             `[NOMBA WEBHOOK] No wallet or temporary account found matching account number: ${aliasAccountNumber}`,
           );
-          return {
-            status: 'Not Found',
-            message: 'Matching virtual account not found',
-          };
+          throw new NotFoundException('Matching virtual account not found');
         }
 
         if (tempAccount.status === 'EXPIRED') {
@@ -211,7 +290,7 @@ export class WebhooksService {
         });
 
         this.logger.log(
-          `[NOMBA WEBHOOK] Successfully credited temporary account ${tempAccount.id} with ${amount}.`,
+          `[NOMBA WEBHOOK] Successfully processed temporary virtual account deposit for ${tempAccount.accountNumber}`,
         );
       }
     }

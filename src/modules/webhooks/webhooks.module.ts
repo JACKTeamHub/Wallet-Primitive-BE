@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
-import { WebhooksService } from './webhooks.service';
 import { WebhooksController } from './webhooks.controller';
+
+// Import Use Case
+import { HandleNombaWebhookUseCase } from './use-cases/handle-nomba-webhook.use-case';
 
 @Module({
   controllers: [WebhooksController],
-  providers: [WebhooksService],
-  exports: [WebhooksService],
+  providers: [HandleNombaWebhookUseCase],
+  exports: [HandleNombaWebhookUseCase],
 })
 export class WebhooksModule {}

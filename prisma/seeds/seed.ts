@@ -8,54 +8,6 @@ const prisma = new PrismaClient({ adapter });
 async function main() {
   console.log('Seeding database with Wallet Primitive mock structures...');
 
-  // 1. Create Workspace
-  const workspace = await prisma.workspace.upsert({
-    where: { id: 'seed-workspace-id-12345' },
-    update: {},
-    create: {
-      id: 'seed-workspace-id-12345',
-      name: 'Nomba Hackathon Workspace',
-    },
-  });
-  console.log(
-    `Workspace created/verified: ${workspace.name} (${workspace.id})`,
-  );
-
-  // 2. Create Developer User
-  // Simple SHA-256 hashing for seed password (or bcrypt hash)
-  const passwordHash = crypto
-    .createHash('sha256')
-    .update('password123')
-    .digest('hex');
-  const user = await prisma.developerUser.upsert({
-    where: { email: 'dev@nomba.com' },
-    update: {},
-    create: {
-      email: 'dev@nomba.com',
-      passwordHash,
-      workspaceId: workspace.id,
-    },
-  });
-  console.log(`Developer User created: ${user.email}`);
-
-  // 3. Create API Key
-  const rawApiKey = 'wp_test_1234567890';
-  const keyHash = crypto.createHash('sha256').update(rawApiKey).digest('hex');
-  await prisma.apiKey.upsert({
-    where: { keyHash },
-    update: {},
-    create: {
-      keyHash,
-      name: 'Development Test Key',
-      workspaceId: workspace.id,
-    },
-  });
-  console.log(
-    `API Key seeded: ${rawApiKey} (Use this for Authorization: Bearer ${rawApiKey})`,
-  );
-
-  // 4. Create Encrypted Nomba Credentials
-  // Encryption parameters matching AES-256-GCM encryption strategy
   const encryptionKey =
     process.env.ENCRYPTION_KEY || 'supersecretencryptionkey12345678';
 
@@ -69,80 +21,174 @@ async function main() {
     return `${iv.toString('hex')}:${authTag}:${encrypted}`;
   };
 
-  const encryptedClientId = encryptHelper('mock-client-id-xyz', encryptionKey);
-  const encryptedClientSecret = encryptHelper(
-    'mock-client-secret-abc',
-    encryptionKey,
-  );
-  const encryptedAccountId = encryptHelper('mock-account-123', encryptionKey);
+  const salt = crypto.randomBytes(16).toString('hex');
+  const passwordHash = `${salt}:${crypto
+    .pbkdf2Sync('password123', salt, 10000, 64, 'sha512')
+    .toString('hex')}`;
 
-  await prisma.nombaCredential.upsert({
-    where: { workspaceId: workspace.id },
-    update: {},
-    create: {
-      clientId: encryptedClientId,
-      clientSecret: encryptedClientSecret,
-      accountId: encryptedAccountId,
-      workspaceId: workspace.id,
-    },
-  });
-  console.log('Seed Nomba Credentials created and encrypted.');
-
-  // 5. Create Customer
-  const customer = await prisma.customer.upsert({
-    where: {
-      workspaceId_email: {
-        workspaceId: workspace.id,
-        email: 'customer@johndoe.com',
-      },
-    },
-    update: {},
-    create: {
-      email: 'customer@johndoe.com',
-      name: 'John Doe',
-      workspaceId: workspace.id,
-    },
-  });
-  console.log(`Customer created: ${customer.name}`);
-
-  // 6. Create Wallet
-  const wallet = await prisma.wallet.upsert({
-    where: { accountNumber: '1029384756' },
-    update: {},
-    create: {
-      customerId: customer.id,
-      workspaceId: workspace.id,
+  // Define workspaces to seed
+  const workspacesData = [
+    {
+      id: 'seed-workspace-chowdeck',
+      name: 'Chowdeck Workspace',
+      email: 'dev@chowdeck.com',
+      rawApiKey: 'wp_live_chowdeck_test_key_123456',
+      customerName: 'John Doe',
+      customerEmail: 'john@chowdeck.com',
       accountNumber: '1029384756',
-      bankName: 'Nomba Microfinance Bank',
-      balance: 50000.0, // Initial balance 50,000.00
-      status: 'ACTIVE',
+      balance: 120500.0,
+      transactions: [
+        { type: 'CREDIT' as const, amount: 150000.0, desc: 'Investor Funding' },
+        { type: 'DEBIT' as const, amount: 29500.0, desc: 'Payout for Logistics dispatch' }
+      ]
     },
-  });
-  console.log(
-    `Persistent Wallet created: ${wallet.accountNumber} (Balance: ${wallet.balance})`,
-  );
+    {
+      id: 'seed-workspace-jumia',
+      name: 'Jumia Workspace',
+      email: 'dev@jumia.com',
+      rawApiKey: 'wp_live_jumia_test_key_123456',
+      customerName: 'Mary Smith',
+      customerEmail: 'mary@jumia.com',
+      accountNumber: '5647382910',
+      balance: 450000.0,
+      transactions: [
+        { type: 'CREDIT' as const, amount: 500000.0, desc: 'Store Settlement Payout' },
+        { type: 'DEBIT' as const, amount: 50000.0, desc: 'API Refund for order #JUM-9982' }
+      ]
+    },
+    {
+      id: 'seed-workspace-gig',
+      name: 'GIG Logistics Workspace',
+      email: 'dev@giglogistics.com',
+      rawApiKey: 'wp_live_gig_test_key_123456',
+      customerName: 'David Johnson',
+      customerEmail: 'david@giglogistics.com',
+      accountNumber: '8877665544',
+      balance: 0.0,
+      transactions: [] // Empty wallet ready to receive simulated webhooks
+    }
+  ];
 
-  // 7. Add Initial Ledger Entry
-  const ledgerCount = await prisma.ledgerEntry.count({
-    where: { walletId: wallet.id },
-  });
-  if (ledgerCount === 0) {
-    await prisma.ledgerEntry.create({
-      data: {
-        walletId: wallet.id,
+  for (const data of workspacesData) {
+    console.log(`\n--- Seeding ${data.name} ---`);
+
+    // 1. Upsert Workspace
+    const workspace = await prisma.workspace.upsert({
+      where: { id: data.id },
+      update: { name: data.name },
+      create: { id: data.id, name: data.name },
+    });
+
+    // 2. Upsert Developer User
+    const user = await prisma.developerUser.upsert({
+      where: { email: data.email },
+      update: { verified: true },
+      create: {
+        email: data.email,
+        passwordHash,
         workspaceId: workspace.id,
-        type: 'CREDIT',
-        amount: 50000.0,
-        runningBalance: 50000.0,
-        status: 'SUCCESS',
-        description: 'Initial Wallet Provisioning Deposit',
-        nombaRef: 'init-dep-tx-ref-999',
+        verified: true,
       },
     });
-    console.log('Seeded initial CREDIT ledger entry.');
+    console.log(`Developer User created: ${user.email} (verified: true)`);
+
+    // 3. Upsert API Key
+    const keyHash = crypto.createHash('sha256').update(data.rawApiKey).digest('hex');
+    await prisma.apiKey.upsert({
+      where: { keyHash },
+      update: {},
+      create: {
+        keyHash,
+        name: 'Development Demo Key',
+        workspaceId: workspace.id,
+      },
+    });
+    console.log(`API Key seeded: ${data.rawApiKey}`);
+
+    // 4. Upsert Nomba Credentials
+    const encryptedClientId = encryptHelper(`client-id-${data.id}`, encryptionKey);
+    const encryptedClientSecret = encryptHelper(`client-secret-${data.id}`, encryptionKey);
+    const encryptedAccountId = encryptHelper(`account-id-${data.id}`, encryptionKey);
+
+    await prisma.nombaCredential.upsert({
+      where: { workspaceId: workspace.id },
+      update: {
+        clientId: encryptedClientId,
+        clientSecret: encryptedClientSecret,
+        accountId: encryptedAccountId,
+      },
+      create: {
+        clientId: encryptedClientId,
+        clientSecret: encryptedClientSecret,
+        accountId: encryptedAccountId,
+        workspaceId: workspace.id,
+      },
+    });
+
+    // 5. Upsert Customer
+    const customer = await prisma.customer.upsert({
+      where: {
+        workspaceId_email: {
+          workspaceId: workspace.id,
+          email: data.customerEmail,
+        },
+      },
+      update: { name: data.customerName },
+      create: {
+        email: data.customerEmail,
+        name: data.customerName,
+        workspaceId: workspace.id,
+      },
+    });
+    console.log(`Customer created: ${customer.name}`);
+
+    // 6. Upsert Wallet
+    const wallet = await prisma.wallet.upsert({
+      where: { accountNumber: data.accountNumber },
+      update: { balance: data.balance },
+      create: {
+        customerId: customer.id,
+        workspaceId: workspace.id,
+        accountNumber: data.accountNumber,
+        bankName: 'Nomba Microfinance Bank',
+        balance: data.balance,
+        status: 'ACTIVE',
+      },
+    });
+    console.log(`Persistent Wallet created: ${wallet.accountNumber} (Balance: NGN ${wallet.balance})`);
+
+    // 7. Seed Ledger Entries
+    const existingLedgerCount = await prisma.ledgerEntry.count({
+      where: { walletId: wallet.id },
+    });
+
+    if (existingLedgerCount === 0 && data.transactions.length > 0) {
+      let currentRunningBalance = 0;
+      for (const tx of data.transactions) {
+        if (tx.type === 'CREDIT') {
+          currentRunningBalance += tx.amount;
+        } else {
+          currentRunningBalance -= tx.amount;
+        }
+
+        await prisma.ledgerEntry.create({
+          data: {
+            walletId: wallet.id,
+            workspaceId: workspace.id,
+            type: tx.type,
+            amount: tx.amount,
+            runningBalance: currentRunningBalance,
+            status: 'SUCCESS',
+            description: tx.desc,
+            nombaRef: `seed_tx_${crypto.randomBytes(6).toString('hex')}`,
+          },
+        });
+      }
+      console.log(`Seeded ${data.transactions.length} ledger entries.`);
+    }
   }
 
-  console.log('Database seeding completed successfully!');
+  console.log('\nDatabase seeding completed successfully!');
 }
 
 main()

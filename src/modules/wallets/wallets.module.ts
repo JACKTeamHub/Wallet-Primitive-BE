@@ -1,10 +1,34 @@
 import { Module } from '@nestjs/common';
-import { WalletsService } from './wallets.service';
 import { WalletsController } from './wallets.controller';
+
+// Import Use Cases
+import { CreateWalletUseCase } from './use-cases/create-wallet.use-case';
+import { GetWalletBalanceUseCase } from './use-cases/get-wallet-balance.use-case';
+import { GetWalletLedgerUseCase } from './use-cases/get-wallet-ledger.use-case';
+import { UpdateWalletStatusUseCase } from './use-cases/update-wallet-status.use-case';
+import { TransferUseCase } from './use-cases/transfer.use-case';
+import { GenerateStatementUseCase } from './use-cases/generate-statement.use-case';
+import { UpdateKycUseCase } from './use-cases/update-kyc.use-case';
 
 @Module({
   controllers: [WalletsController],
-  providers: [WalletsService],
-  exports: [WalletsService],
+  providers: [
+    CreateWalletUseCase,
+    GetWalletBalanceUseCase,
+    GetWalletLedgerUseCase,
+    UpdateWalletStatusUseCase,
+    TransferUseCase,
+    GenerateStatementUseCase,
+    UpdateKycUseCase,
+  ],
+  exports: [
+    CreateWalletUseCase,
+    GetWalletBalanceUseCase,
+    GetWalletLedgerUseCase,
+    UpdateWalletStatusUseCase,
+    TransferUseCase,
+    GenerateStatementUseCase,
+    UpdateKycUseCase,
+  ],
 })
 export class WalletsModule {}
