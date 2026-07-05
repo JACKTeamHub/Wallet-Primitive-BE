@@ -176,7 +176,8 @@ export class WorkspacesController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Simulate an incoming Nomba payment success webhook deposit (Requires JWT)',
+    summary:
+      'Simulate an incoming Nomba payment success webhook deposit (Requires JWT)',
   })
   @ApiResponse({
     status: 200,
