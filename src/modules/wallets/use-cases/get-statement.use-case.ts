@@ -58,8 +58,12 @@ export class GetStatementUseCase {
       orderBy: { createdAt: 'desc' },
     });
 
-    const closingBalance = lastTxBeforeEnd ? Number(lastTxBeforeEnd.runningBalance) : 0;
-    const openingBalance = lastTxBeforeStart ? Number(lastTxBeforeStart.runningBalance) : 0;
+    const closingBalance = lastTxBeforeEnd
+      ? Number(lastTxBeforeEnd.runningBalance)
+      : 0;
+    const openingBalance = lastTxBeforeStart
+      ? Number(lastTxBeforeStart.runningBalance)
+      : 0;
 
     const credits = ledgerEntries.filter(
       (entry) => entry.type === 'CREDIT' && entry.status === 'SUCCESS',

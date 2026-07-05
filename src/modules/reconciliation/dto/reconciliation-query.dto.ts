@@ -9,4 +9,6 @@ export const ReconciliationQuerySchema = z.object({
   endDate: z.string().optional(),
 });
 
-export class ReconciliationQueryDto extends createZodDto(ReconciliationQuerySchema) {}
+export class ReconciliationQueryDto extends createZodDto(
+  ReconciliationQuerySchema,
+) {}

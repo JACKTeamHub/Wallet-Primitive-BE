@@ -147,7 +147,8 @@ export class WalletsController {
 
   @Get(':id/statement')
   @ApiOperation({
-    summary: 'Get wallet transaction statement summary and transactions in a date range',
+    summary:
+      'Get wallet transaction statement summary and transactions in a date range',
   })
   @ApiResponse({
     status: 200,
@@ -202,7 +203,10 @@ export class WalletsController {
 
   @Get()
   @ApiOperation({ summary: 'List all virtual wallets in the workspace' })
-  @ApiResponse({ status: 200, description: 'Wallets list retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Wallets list retrieved successfully',
+  })
   async list(
     @WorkspaceId() workspaceId: string,
     @Query() query: WalletQueryDto,
@@ -212,12 +216,12 @@ export class WalletsController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a specific wallet details' })
-  @ApiResponse({ status: 200, description: 'Wallet details retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Wallet details retrieved successfully',
+  })
   @ApiResponse({ status: 404, description: 'Wallet not found' })
-  async getDetail(
-    @WorkspaceId() workspaceId: string,
-    @Param('id') id: string,
-  ) {
+  async getDetail(@WorkspaceId() workspaceId: string, @Param('id') id: string) {
     return this.getWalletDetailUseCase.execute(workspaceId, id);
   }
 }

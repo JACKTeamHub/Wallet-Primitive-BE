@@ -16,8 +16,13 @@ export class DashboardController {
   constructor(private readonly getDashboardUseCase: GetDashboardUseCase) {}
 
   @Get()
-  @ApiOperation({ summary: 'Get workspace dashboard analytics and recent activity' })
-  @ApiResponse({ status: 200, description: 'Dashboard metrics retrieved successfully' })
+  @ApiOperation({
+    summary: 'Get workspace dashboard analytics and recent activity',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Dashboard metrics retrieved successfully',
+  })
   async getDashboard(@WorkspaceId() workspaceId: string) {
     return this.getDashboardUseCase.execute(workspaceId);
   }

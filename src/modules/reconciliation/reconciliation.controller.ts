@@ -1,4 +1,12 @@
-import { Controller, Post, Get, Body, UseGuards, Query, Param } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  UseGuards,
+  Query,
+  Param,
+} from '@nestjs/common';
 import { ApiKeyGuard } from '@shared/guards/api-key.guard';
 import { WorkspaceId } from '@shared/decorators/workspace-id.decorator';
 import { ApiTags, ApiHeader, ApiOperation, ApiResponse } from '@nestjs/swagger';
@@ -48,7 +56,10 @@ export class ReconciliationController {
 
   @Get()
   @ApiOperation({ summary: 'List all reconciliation transaction entries' })
-  @ApiResponse({ status: 200, description: 'Reconciliation entries list retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Reconciliation entries list retrieved successfully',
+  })
   async list(
     @WorkspaceId() workspaceId: string,
     @Query() query: ReconciliationQueryDto,
@@ -58,12 +69,12 @@ export class ReconciliationController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a specific reconciliation entry details' })
-  @ApiResponse({ status: 200, description: 'Reconciliation entry details retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Reconciliation entry details retrieved successfully',
+  })
   @ApiResponse({ status: 404, description: 'Reconciliation entry not found' })
-  async getDetail(
-    @WorkspaceId() workspaceId: string,
-    @Param('id') id: string,
-  ) {
+  async getDetail(@WorkspaceId() workspaceId: string, @Param('id') id: string) {
     return this.getReconciliationDetailUseCase.execute(workspaceId, id);
   }
 }

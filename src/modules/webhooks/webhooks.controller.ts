@@ -101,7 +101,10 @@ export class WebhooksController {
     required: true,
   })
   @ApiOperation({ summary: 'List all processed webhook events' })
-  @ApiResponse({ status: 200, description: 'Webhooks list retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Webhooks list retrieved successfully',
+  })
   async list(
     @WorkspaceId() workspaceId: string,
     @Query() query: WebhookQueryDto,
@@ -117,12 +120,12 @@ export class WebhooksController {
     required: true,
   })
   @ApiOperation({ summary: 'Get a specific processed webhook details' })
-  @ApiResponse({ status: 200, description: 'Processed webhook details retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Processed webhook details retrieved successfully',
+  })
   @ApiResponse({ status: 404, description: 'Webhook not found' })
-  async getDetail(
-    @WorkspaceId() workspaceId: string,
-    @Param('id') id: string,
-  ) {
+  async getDetail(@WorkspaceId() workspaceId: string, @Param('id') id: string) {
     return this.getWebhookDetailUseCase.execute(workspaceId, id);
   }
 }
