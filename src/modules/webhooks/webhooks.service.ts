@@ -108,6 +108,40 @@ export class WebhooksService {
       if (wallet) {
         const creditAmount = new Prisma.Decimal(amount);
 
+        if (wallet.status === 'FROZEN' || wallet.status === 'CLOSED') {
+          this.logger.warn(
+            `[NOMBA WEBHOOK] Wallet ${wallet.id} is ${wallet.status}. Quarantining deposit of ${amount}.`,
+          );
+
+          await this.prisma.$transaction(async (tx) => {
+            await tx.processedWebhook.create({
+              data: {
+                eventRef: transactionId,
+                workspaceId: wallet.workspaceId,
+              },
+            });
+
+            await tx.ledgerEntry.create({
+              data: {
+                walletId: wallet.id,
+                workspaceId: wallet.workspaceId,
+                type: 'CREDIT',
+                amount: creditAmount,
+                runningBalance: wallet.balance, 
+                status: 'QUARANTINED',
+                nombaRef: transactionId,
+                sessionId: sessionId || null,
+                description: narration || `Quarantined Deposit: Wallet is ${wallet.status}`,
+              },
+            });
+          });
+
+          return {
+            status: 'quarantined',
+            message: `Deposit quarantined because wallet is ${wallet.status}`,
+          };
+        }
+
         await this.prisma.$transaction(async (tx) => {
           const currentWallet = await tx.wallet.findUnique({
             where: { id: wallet.id },
