@@ -12,14 +12,21 @@ import {
 import type { Response } from 'express';
 import { ApiKeyGuard } from '@shared/guards/api-key.guard';
 import { WorkspaceId } from '@shared/decorators/workspace-id.decorator';
-import { WalletsService } from './wallets.service';
 import { CreateWalletDto } from './dto/create-wallet.dto';
 import { TransferDto } from './dto/transfer.dto';
 import { UpdateWalletStatusDto } from './dto/update-wallet-status.dto';
 import { ApiTags, ApiHeader, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Wallet, LedgerEntry, Prisma } from '@generated/prisma/client';
 import { LedgerQueryDto } from './dto/ledger-query.dto';
-import { PaginatedResult } from '../../shared/utils/pagination.util';
+import { PaginatedResult } from '@shared/utils/pagination.util';
+
+// Import Use Cases
+import { CreateWalletUseCase } from './use-cases/create-wallet.use-case';
+import { GetWalletBalanceUseCase } from './use-cases/get-wallet-balance.use-case';
+import { GetWalletLedgerUseCase } from './use-cases/get-wallet-ledger.use-case';
+import { UpdateWalletStatusUseCase } from './use-cases/update-wallet-status.use-case';
+import { TransferUseCase } from './use-cases/transfer.use-case';
+import { GenerateStatementUseCase } from './use-cases/generate-statement.use-case';
 
 @ApiTags('wallets')
 @ApiHeader({
@@ -30,7 +37,14 @@ import { PaginatedResult } from '../../shared/utils/pagination.util';
 @UseGuards(ApiKeyGuard)
 @Controller('wallets')
 export class WalletsController {
-  constructor(private readonly walletsService: WalletsService) {}
+  constructor(
+    private readonly createWalletUseCase: CreateWalletUseCase,
+    private readonly getWalletBalanceUseCase: GetWalletBalanceUseCase,
+    private readonly getWalletLedgerUseCase: GetWalletLedgerUseCase,
+    private readonly updateWalletStatusUseCase: UpdateWalletStatusUseCase,
+    private readonly transferUseCase: TransferUseCase,
+    private readonly generateStatementUseCase: GenerateStatementUseCase,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Create a virtual wallet for a customer' })
@@ -40,7 +54,7 @@ export class WalletsController {
     @WorkspaceId() workspaceId: string,
     @Body() dto: CreateWalletDto,
   ): Promise<Wallet> {
-    return this.walletsService.createWallet(workspaceId, dto);
+    return this.createWalletUseCase.execute(workspaceId, dto);
   }
 
   @Post('transfer')
@@ -58,7 +72,7 @@ export class WalletsController {
     status: string;
     timestamp: Date;
   }> {
-    return this.walletsService.transfer(workspaceId, dto);
+    return this.transferUseCase.execute(workspaceId, dto);
   }
 
   @Get(':id/balance')
@@ -71,7 +85,7 @@ export class WalletsController {
     accountNumber: string;
     bankName: string;
   }> {
-    return this.walletsService.getWalletBalance(workspaceId, id);
+    return this.getWalletBalanceUseCase.execute(workspaceId, id);
   }
 
   @Get(':id/ledger')
@@ -84,7 +98,7 @@ export class WalletsController {
     @Param('id') id: string,
     @Query() query: LedgerQueryDto,
   ): Promise<PaginatedResult<LedgerEntry>> {
-    return this.walletsService.getWalletLedger(workspaceId, id, query);
+    return this.getWalletLedgerUseCase.execute(workspaceId, id, query);
   }
 
   @Patch(':id/status')
@@ -101,7 +115,7 @@ export class WalletsController {
     @Param('id') id: string,
     @Body() dto: UpdateWalletStatusDto,
   ): Promise<Wallet> {
-    return this.walletsService.updateWalletStatus(workspaceId, id, dto);
+    return this.updateWalletStatusUseCase.execute(workspaceId, id, dto);
   }
 
   @Get(':id/statement/pdf')
@@ -120,7 +134,7 @@ export class WalletsController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ): Promise<void> {
-    const buffer = await this.walletsService.getWalletStatementPdf(
+    const buffer = await this.generateStatementUseCase.execute(
       workspaceId,
       id,
       startDate,

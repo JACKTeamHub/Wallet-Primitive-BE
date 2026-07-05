@@ -10,16 +10,14 @@ import {
   UseGuards,
   Query,
 } from '@nestjs/common';
-import { AuditLogQueryDto } from './dto/audit-log-query.dto';
-import { AuditLog } from '@generated/prisma/client';
-import { WorkspacesService } from './workspaces.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { RegisterCredentialsDto } from './dto/register-credentials.dto';
 import { GenerateApiKeyDto } from './dto/generate-api-key.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { LoginDto } from './dto/login.dto';
 import { SimulateWebhookDto } from './dto/simulate-webhook.dto';
-import { NombaCredential } from '@generated/prisma/client';
+import { LedgerQueryDto } from '../wallets/dto/ledger-query.dto';
+import { NombaCredential, AuditLog, LedgerEntry } from '@generated/prisma/client';
 import {
   ApiTags,
   ApiOperation,
@@ -28,11 +26,43 @@ import {
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
 import { PaginatedResult } from '@shared/utils/pagination.util';
+import { AuditLogQueryDto } from './dto/audit-log-query.dto';
+
+// Import Use Cases
+import { CreateWorkspaceUseCase } from './use-cases/create-workspace.use-case';
+import { VerifyOnboardingOtpUseCase } from './use-cases/verify-onboarding-otp.use-case';
+import { LoginRequestUseCase } from './use-cases/login-request.use-case';
+import { LoginVerifyUseCase } from './use-cases/login-verify.use-case';
+import { GenerateApiKeyUseCase } from './use-cases/generate-api-key.use-case';
+import { GetApiKeysUseCase } from './use-cases/get-api-keys.use-case';
+import { DeleteApiKeyUseCase } from './use-cases/delete-api-key.use-case';
+import { RegisterCredentialsUseCase } from './use-cases/register-credentials.use-case';
+import { GetWorkspaceAnalyticsUseCase } from './use-cases/get-workspace-analytics.use-case';
+import { GetWorkspaceAuditLogsUseCase } from './use-cases/get-workspace-audit-logs.use-case';
+import { SimulateWebhookUseCase } from './use-cases/simulate-webhook.use-case';
+import { GetWorkspaceQuarantineUseCase } from './use-cases/get-workspace-quarantine.use-case';
+import { ReleaseQuarantinedFundsUseCase } from './use-cases/release-quarantined-funds.use-case';
+import { RejectQuarantinedFundsUseCase } from './use-cases/reject-quarantined-funds.use-case';
 
 @ApiTags('workspaces')
 @Controller('workspaces')
 export class WorkspacesController {
-  constructor(private readonly workspacesService: WorkspacesService) {}
+  constructor(
+    private readonly createWorkspaceUseCase: CreateWorkspaceUseCase,
+    private readonly verifyOnboardingOtpUseCase: VerifyOnboardingOtpUseCase,
+    private readonly loginRequestUseCase: LoginRequestUseCase,
+    private readonly loginVerifyUseCase: LoginVerifyUseCase,
+    private readonly generateApiKeyUseCase: GenerateApiKeyUseCase,
+    private readonly getApiKeysUseCase: GetApiKeysUseCase,
+    private readonly deleteApiKeyUseCase: DeleteApiKeyUseCase,
+    private readonly registerCredentialsUseCase: RegisterCredentialsUseCase,
+    private readonly getWorkspaceAnalyticsUseCase: GetWorkspaceAnalyticsUseCase,
+    private readonly getWorkspaceAuditLogsUseCase: GetWorkspaceAuditLogsUseCase,
+    private readonly simulateWebhookUseCase: SimulateWebhookUseCase,
+    private readonly getWorkspaceQuarantineUseCase: GetWorkspaceQuarantineUseCase,
+    private readonly releaseQuarantinedFundsUseCase: ReleaseQuarantinedFundsUseCase,
+    private readonly rejectQuarantinedFundsUseCase: RejectQuarantinedFundsUseCase,
+  ) {}
 
   @Post()
   @ApiOperation({
@@ -44,7 +74,7 @@ export class WorkspacesController {
   })
   @ApiResponse({ status: 409, description: 'User already exists' })
   async createWorkspace(@Body() dto: CreateWorkspaceDto) {
-    return this.workspacesService.createWorkspace(dto);
+    return this.createWorkspaceUseCase.execute(dto);
   }
 
   @Post('verify-onboarding')
@@ -54,7 +84,7 @@ export class WorkspacesController {
   @ApiResponse({ status: 200, description: 'Account activated successfully.' })
   @ApiResponse({ status: 400, description: 'Invalid or expired OTP' })
   async verifyOnboarding(@Body() dto: VerifyOtpDto) {
-    return this.workspacesService.verifyOnboardingOtp(dto);
+    return this.verifyOnboardingOtpUseCase.execute(dto);
   }
 
   @Post('login')
@@ -67,7 +97,7 @@ export class WorkspacesController {
     description: 'Invalid credentials or inactive account',
   })
   async login(@Body() dto: LoginDto) {
-    return this.workspacesService.loginRequest(dto);
+    return this.loginRequestUseCase.execute(dto);
   }
 
   @Post('login/verify')
@@ -78,7 +108,7 @@ export class WorkspacesController {
   })
   @ApiResponse({ status: 400, description: 'Invalid or expired OTP' })
   async verifyLogin(@Body() dto: VerifyOtpDto) {
-    return this.workspacesService.loginVerify(dto);
+    return this.loginVerifyUseCase.execute(dto);
   }
 
   @Post(':workspaceId/api-keys')
@@ -92,7 +122,7 @@ export class WorkspacesController {
     @Param('workspaceId') workspaceId: string,
     @Body() dto: GenerateApiKeyDto,
   ): Promise<{ rawKey: string; name: string; createdAt: Date }> {
-    return this.workspacesService.generateApiKey(workspaceId, dto);
+    return this.generateApiKeyUseCase.execute(workspaceId, dto);
   }
 
   @Get(':workspaceId/api-keys')
@@ -105,7 +135,7 @@ export class WorkspacesController {
   async getApiKeys(
     @Param('workspaceId') workspaceId: string,
   ): Promise<{ id: string; name: string; createdAt: Date }[]> {
-    return this.workspacesService.getApiKeys(workspaceId);
+    return this.getApiKeysUseCase.execute(workspaceId);
   }
 
   @Delete(':workspaceId/api-keys/:keyId')
@@ -120,7 +150,7 @@ export class WorkspacesController {
     @Param('workspaceId') workspaceId: string,
     @Param('keyId') keyId: string,
   ): Promise<void> {
-    return this.workspacesService.deleteApiKey(workspaceId, keyId);
+    return this.deleteApiKeyUseCase.execute(workspaceId, keyId);
   }
 
   @Post(':workspaceId/credentials')
@@ -139,7 +169,7 @@ export class WorkspacesController {
     @Param('workspaceId') workspaceId: string,
     @Body() dto: RegisterCredentialsDto,
   ): Promise<NombaCredential> {
-    return this.workspacesService.registerCredentials(workspaceId, dto);
+    return this.registerCredentialsUseCase.execute(workspaceId, dto);
   }
 
   @Get(':workspaceId/analytics')
@@ -150,7 +180,7 @@ export class WorkspacesController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Workspace not found' })
   async getAnalytics(@Param('workspaceId') workspaceId: string) {
-    return this.workspacesService.getWorkspaceAnalytics(workspaceId);
+    return this.getWorkspaceAnalyticsUseCase.execute(workspaceId);
   }
 
   @Get(':workspaceId/audit-logs')
@@ -169,7 +199,7 @@ export class WorkspacesController {
     @Param('workspaceId') workspaceId: string,
     @Query() query: AuditLogQueryDto,
   ): Promise<PaginatedResult<AuditLog>> {
-    return this.workspacesService.getWorkspaceAuditLogs(workspaceId, query);
+    return this.getWorkspaceAuditLogsUseCase.execute(workspaceId, query);
   }
 
   @Post(':workspaceId/simulate-webhook')
@@ -189,6 +219,70 @@ export class WorkspacesController {
     @Param('workspaceId') workspaceId: string,
     @Body() dto: SimulateWebhookDto,
   ) {
-    return this.workspacesService.simulateWebhook(workspaceId, dto);
+    return this.simulateWebhookUseCase.execute(workspaceId, dto);
+  }
+
+  @Get(':workspaceId/quarantine')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get all quarantined ledger entries in the workspace (Requires JWT)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Quarantined transactions retrieved successfully',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Workspace not found' })
+  async getQuarantine(
+    @Param('workspaceId') workspaceId: string,
+    @Query() query: LedgerQueryDto,
+  ): Promise<PaginatedResult<LedgerEntry>> {
+    return this.getWorkspaceQuarantineUseCase.execute(workspaceId, query);
+  }
+
+  @Post(':workspaceId/quarantine/:ledgerEntryId/release')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Release quarantined funds and credit target wallet (Requires JWT)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Quarantined funds released successfully',
+  })
+  @ApiResponse({ status: 400, description: 'Target wallet must be active' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Quarantined entry not found' })
+  async releaseQuarantine(
+    @Param('workspaceId') workspaceId: string,
+    @Param('ledgerEntryId') ledgerEntryId: string,
+  ) {
+    return this.releaseQuarantinedFundsUseCase.execute(
+      workspaceId,
+      ledgerEntryId,
+    );
+  }
+
+  @Post(':workspaceId/quarantine/:ledgerEntryId/reject')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Reject quarantined funds and mark transaction as failed (Requires JWT)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Quarantined funds rejected successfully',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Quarantined entry not found' })
+  async rejectQuarantine(
+    @Param('workspaceId') workspaceId: string,
+    @Param('ledgerEntryId') ledgerEntryId: string,
+  ) {
+    return this.rejectQuarantinedFundsUseCase.execute(
+      workspaceId,
+      ledgerEntryId,
+    );
   }
 }

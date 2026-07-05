@@ -1,0 +1,123 @@
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { PrismaService } from '@infrastructure/prisma/prisma.service';
+import { Prisma } from '@generated/prisma/client';
+import { TransferDto } from '../dto/transfer.dto';
+import { randomUUID } from 'crypto';
+
+@Injectable()
+export class TransferUseCase {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async execute(
+    workspaceId: string,
+    dto: TransferDto,
+  ): Promise<{
+    transactionGroupId: string;
+    amount: number;
+    senderWalletId: string;
+    recipientWalletId: string;
+    status: string;
+    timestamp: Date;
+  }> {
+    if (dto.senderWalletId === dto.recipientWalletId) {
+      throw new BadRequestException(
+        'Sender and recipient wallets must be different',
+      );
+    }
+
+    const transferAmount = new Prisma.Decimal(dto.amount);
+
+    return this.prisma.$transaction(async (tx) => {
+      const sender = await tx.wallet.findFirst({
+        where: { id: dto.senderWalletId, workspaceId },
+      });
+      if (!sender) {
+        throw new NotFoundException('Sender wallet not found');
+      }
+
+      const recipient = await tx.wallet.findFirst({
+        where: { id: dto.recipientWalletId, workspaceId },
+      });
+      if (!recipient) {
+        throw new NotFoundException('Recipient wallet not found');
+      }
+
+      if (sender.status !== 'ACTIVE') {
+        throw new BadRequestException(
+          `Sender wallet is ${sender.status.toLowerCase()}`,
+        );
+      }
+
+      if (recipient.status !== 'ACTIVE') {
+        throw new BadRequestException(
+          `Recipient wallet is ${recipient.status.toLowerCase()}`,
+        );
+      }
+
+      if (sender.balance.lt(transferAmount)) {
+        throw new BadRequestException('Insufficient wallet balance');
+      }
+
+      const newSenderBalance = sender.balance.sub(transferAmount);
+      const newRecipientBalance = recipient.balance.add(transferAmount);
+
+      // 4. Update balances in database
+      await tx.wallet.update({
+        where: { id: sender.id },
+        data: { balance: newSenderBalance },
+      });
+
+      await tx.wallet.update({
+        where: { id: recipient.id },
+        data: { balance: newRecipientBalance },
+      });
+
+      // 5. Generate links and IDs
+      const transactionGroupId = randomUUID();
+      const debitEntryId = randomUUID();
+      const creditEntryId = randomUUID();
+
+      // 6. Write double-entry ledger journals
+      // A. Debit Leg
+      await tx.ledgerEntry.create({
+        data: {
+          id: debitEntryId,
+          walletId: sender.id,
+          workspaceId,
+          type: 'DEBIT',
+          amount: transferAmount,
+          runningBalance: newSenderBalance,
+          description:
+            dto.description || `Transfer to ${recipient.accountNumber}`,
+          transactionGroupId,
+          relatedLedgerEntryId: creditEntryId,
+        },
+      });
+
+      // B. Credit Leg
+      const creditLeg = await tx.ledgerEntry.create({
+        data: {
+          id: creditEntryId,
+          walletId: recipient.id,
+          workspaceId,
+          type: 'CREDIT',
+          amount: transferAmount,
+          runningBalance: newRecipientBalance,
+          description:
+            dto.description || `Transfer from ${sender.accountNumber}`,
+          transactionGroupId,
+          relatedLedgerEntryId: debitEntryId,
+        },
+      });
+
+      return {
+        transactionGroupId,
+        amount: dto.amount,
+        senderWalletId: sender.id,
+        recipientWalletId: recipient.id,
+        status: 'SUCCESS',
+        timestamp: creditLeg.createdAt,
+      };
+    });
+  }
+}
