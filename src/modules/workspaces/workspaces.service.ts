@@ -20,10 +20,12 @@ import { AuditLogService } from '@shared/services/audit-log.service';
 import { EmailService } from '@infrastructure/email/email.service';
 import { ConfigService } from '@nestjs/config';
 import { AuditLogQueryDto } from './dto/audit-log-query.dto';
+import { SimulateWebhookDto } from './dto/simulate-webhook.dto';
+import { WebhooksService } from '../webhooks/webhooks.service';
 import {
   PaginatedResult,
   createPaginatedResponse,
-} from '../../shared/utils/pagination.util';
+} from '@shared/utils/pagination.util';
 import { AuditLog, Prisma } from '@generated/prisma/client';
 
 @Injectable()
@@ -36,6 +38,7 @@ export class WorkspacesService {
     private readonly audit: AuditLogService,
     private readonly emailService: EmailService,
     private readonly configService: ConfigService,
+    private readonly webhooksService: WebhooksService,
   ) {}
 
   async createWorkspace(dto: CreateWorkspaceDto): Promise<{
@@ -518,5 +521,66 @@ export class WorkspacesService {
     ]);
 
     return createPaginatedResponse(data, total, page, limit);
+  }
+
+  async simulateWebhook(workspaceId: string, dto: SimulateWebhookDto) {
+    const workspace = await this.prisma.workspace.findUnique({
+      where: { id: workspaceId },
+    });
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    const secret =
+      this.configService.get<string>('NOMBA_WEBHOOK_SECRET') ||
+      'NombaHackathon2026';
+
+    const transactionId =
+      dto.transactionId || `mock_tx_${crypto.randomUUID().substring(0, 8)}`;
+    const timestamp = new Date().toISOString();
+
+    const payload = {
+      event_type: 'payment_success',
+      requestId: `req_${crypto.randomUUID().substring(0, 8)}`,
+      data: {
+        merchant: {
+          userId: 'mock_user_id',
+          walletId: 'mock_wallet_id',
+        },
+        transaction: {
+          aliasAccountNumber: dto.accountNumber,
+          transactionAmount: dto.amount,
+          transactionId,
+          type: 'CREDIT',
+          time: new Date().toISOString(),
+          responseCode: '00',
+          narration: dto.narration,
+        },
+      },
+    };
+
+    const hashingPayload = [
+      payload.event_type,
+      payload.requestId,
+      payload.data.merchant.userId,
+      payload.data.merchant.walletId,
+      payload.data.transaction.transactionId,
+      payload.data.transaction.type,
+      payload.data.transaction.time,
+      payload.data.transaction.responseCode,
+      timestamp,
+    ].join(':');
+
+    const hmac = crypto.createHmac('sha256', secret);
+    hmac.update(hashingPayload);
+    const generatedSignature = hmac.digest('base64');
+
+    const headers = {
+      'nomba-signature': generatedSignature,
+      'nomba-timestamp': timestamp,
+    };
+
+    return this.webhooksService.handleNombaWebhook(payload, headers);
   }
 }
