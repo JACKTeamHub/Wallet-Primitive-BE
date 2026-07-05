@@ -17,7 +17,11 @@ import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { LoginDto } from './dto/login.dto';
 import { SimulateWebhookDto } from './dto/simulate-webhook.dto';
 import { LedgerQueryDto } from '../wallets/dto/ledger-query.dto';
-import { NombaCredential, AuditLog, LedgerEntry } from '@generated/prisma/client';
+import {
+  NombaCredential,
+  AuditLog,
+  LedgerEntry,
+} from '@generated/prisma/client';
 import {
   ApiTags,
   ApiOperation,
@@ -226,7 +230,8 @@ export class WorkspacesController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Get all quarantined ledger entries in the workspace (Requires JWT)',
+    summary:
+      'Get all quarantined ledger entries in the workspace (Requires JWT)',
   })
   @ApiResponse({
     status: 200,
@@ -245,7 +250,8 @@ export class WorkspacesController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Release quarantined funds and credit target wallet (Requires JWT)',
+    summary:
+      'Release quarantined funds and credit target wallet (Requires JWT)',
   })
   @ApiResponse({
     status: 200,
@@ -268,7 +274,8 @@ export class WorkspacesController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Reject quarantined funds and mark transaction as failed (Requires JWT)',
+    summary:
+      'Reject quarantined funds and mark transaction as failed (Requires JWT)',
   })
   @ApiResponse({
     status: 200,

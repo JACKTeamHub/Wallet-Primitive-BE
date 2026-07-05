@@ -124,7 +124,10 @@ export class WalletsController {
   @Patch(':id/kyc')
   @ApiOperation({ summary: 'Upgrade wallet KYC tier (Requires API Key)' })
   @ApiResponse({ status: 200, description: 'KYC tier updated successfully' })
-  @ApiResponse({ status: 400, description: 'Invalid KYC requirements (BVN/NIN missing)' })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid KYC requirements (BVN/NIN missing)',
+  })
   @ApiResponse({ status: 404, description: 'Wallet not found' })
   async updateKyc(
     @WorkspaceId() workspaceId: string,

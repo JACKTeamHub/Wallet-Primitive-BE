@@ -163,10 +163,10 @@ export class GenerateStatementUseCase {
         .fillColor('#9ca3af')
         .fontSize(8)
         .text(
-            `Statement generated on ${new Date().toLocaleDateString()}`,
-            50,
-            750,
-            { align: 'center' },
+          `Statement generated on ${new Date().toLocaleDateString()}`,
+          50,
+          750,
+          { align: 'center' },
         );
 
       doc.end();
