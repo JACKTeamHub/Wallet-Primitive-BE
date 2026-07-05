@@ -164,4 +164,4 @@ When the server is running, the interactive Swagger OpenAPI docs are served at:
 1. **Authorize**: Click **"Authorize"** at the top right of the Swagger UI and enter the seeded key `wp_test_1234567890`.
 2. **Onboard**: Register your credentials via `POST /api/v1/workspaces/{workspaceId}/credentials`. If you don't have Nomba keys, prefix your values with `mock-` to run in local mock mode.
 3. **Onboard Customers**: Create customers (`POST /customers`) and open wallets (`POST /wallets`).
-4. **Simulate Webhooks**: Test the incoming payment flow using the `POST /webhook/nomba` endpoint.
+4. **Simulate Webhooks**: Test the incoming payment flow using the `POST /api/v1/webhooks/nomba` endpoint.

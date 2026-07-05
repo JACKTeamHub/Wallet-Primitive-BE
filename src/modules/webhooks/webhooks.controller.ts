@@ -29,7 +29,7 @@ import { ListWebhooksUseCase } from './use-cases/list-webhooks.use-case';
 import { GetWebhookDetailUseCase } from './use-cases/get-webhook-detail.use-case';
 
 @ApiTags('webhooks')
-@Controller(['webhook', 'webhooks'])
+@Controller('webhooks')
 export class WebhooksController {
   constructor(
     private readonly handleNombaWebhookUseCase: HandleNombaWebhookUseCase,
