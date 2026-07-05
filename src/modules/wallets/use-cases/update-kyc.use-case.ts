@@ -24,17 +24,31 @@ export class UpdateKycUseCase {
       throw new NotFoundException('Wallet not found');
     }
 
-    if (dto.kycTier === 'TIER_2' && !dto.bvn && !wallet.bvn) {
+    const bvnToVerify = dto.bvn || wallet.bvn;
+    if (dto.kycTier === 'TIER_2' && !bvnToVerify) {
       throw new BadRequestException('BVN is required to upgrade to TIER_2');
     }
 
+    if (bvnToVerify) {
+      const bvnRegex = /^\d{11}$/;
+      if (!bvnRegex.test(bvnToVerify)) {
+        throw new BadRequestException('Invalid BVN format. Must be exactly 11 digits.');
+      }
+    }
+
+    const ninToVerify = dto.nin || wallet.nin;
     if (dto.kycTier === 'TIER_3') {
-      const hasBvn = dto.bvn || wallet.bvn;
-      const hasNin = dto.nin || wallet.nin;
-      if (!hasBvn || !hasNin) {
+      if (!bvnToVerify || !ninToVerify) {
         throw new BadRequestException(
           'Both BVN and NIN are required to upgrade to TIER_3',
         );
+      }
+    }
+
+    if (ninToVerify) {
+      const ninRegex = /^\d{11}$/;
+      if (!ninRegex.test(ninToVerify)) {
+        throw new BadRequestException('Invalid NIN format. Must be exactly 11 digits.');
       }
     }
 
