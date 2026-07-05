@@ -8,7 +8,10 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  Query,
 } from '@nestjs/common';
+import { AuditLogQueryDto } from './dto/audit-log-query.dto';
+import { AuditLog } from '@generated/prisma/client';
 import { WorkspacesService } from './workspaces.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { RegisterCredentialsDto } from './dto/register-credentials.dto';
@@ -23,6 +26,7 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
+import { PaginatedResult } from '@shared/utils/pagination.util';
 
 @ApiTags('workspaces')
 @Controller('workspaces')
@@ -146,5 +150,19 @@ export class WorkspacesController {
   @ApiResponse({ status: 404, description: 'Workspace not found' })
   async getAnalytics(@Param('workspaceId') workspaceId: string) {
     return this.workspacesService.getWorkspaceAnalytics(workspaceId);
+  }
+
+  @Get(':workspaceId/audit-logs')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get workspace chronological audit logs (Requires JWT)' })
+  @ApiResponse({ status: 200, description: 'Audit logs retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Workspace not found' })
+  async getAuditLogs(
+    @Param('workspaceId') workspaceId: string,
+    @Query() query: AuditLogQueryDto,
+  ): Promise<PaginatedResult<AuditLog>> {
+    return this.workspacesService.getWorkspaceAuditLogs(workspaceId, query);
   }
 }
