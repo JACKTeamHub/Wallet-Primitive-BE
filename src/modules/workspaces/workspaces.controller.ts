@@ -18,6 +18,7 @@ import { RegisterCredentialsDto } from './dto/register-credentials.dto';
 import { GenerateApiKeyDto } from './dto/generate-api-key.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { LoginDto } from './dto/login.dto';
+import { SimulateWebhookDto } from './dto/simulate-webhook.dto';
 import { NombaCredential } from '@generated/prisma/client';
 import {
   ApiTags,
@@ -155,8 +156,13 @@ export class WorkspacesController {
   @Get(':workspaceId/audit-logs')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get workspace chronological audit logs (Requires JWT)' })
-  @ApiResponse({ status: 200, description: 'Audit logs retrieved successfully' })
+  @ApiOperation({
+    summary: 'Get workspace chronological audit logs (Requires JWT)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Audit logs retrieved successfully',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Workspace not found' })
   async getAuditLogs(
@@ -164,5 +170,24 @@ export class WorkspacesController {
     @Query() query: AuditLogQueryDto,
   ): Promise<PaginatedResult<AuditLog>> {
     return this.workspacesService.getWorkspaceAuditLogs(workspaceId, query);
+  }
+
+  @Post(':workspaceId/simulate-webhook')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Simulate an incoming Nomba payment success webhook deposit (Requires JWT)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Simulated payment processed successfully',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Workspace not found' })
+  async simulateWebhook(
+    @Param('workspaceId') workspaceId: string,
+    @Body() dto: SimulateWebhookDto,
+  ) {
+    return this.workspacesService.simulateWebhook(workspaceId, dto);
   }
 }
