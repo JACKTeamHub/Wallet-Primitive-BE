@@ -1,17 +1,13 @@
+import { Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '@infrastructure/prisma/prisma.service';
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@generated/prisma/client';
+import { KYC_LIMITS } from '../../../shared/utils/kyc-limits.util';
 import * as crypto from 'crypto';
 
 @Injectable()
-export class WebhooksService {
-  private readonly logger = new Logger(WebhooksService.name);
+export class HandleNombaWebhookUseCase {
+  private readonly logger = new Logger(HandleNombaWebhookUseCase.name);
   private readonly webhookSecret: string;
 
   constructor(
@@ -23,7 +19,7 @@ export class WebhooksService {
       'NombaHackathon2026';
   }
 
-  async handleNombaWebhook(
+  async execute(
     payload: Record<string, any>,
     headers: Record<string, string>,
   ) {
@@ -108,9 +104,40 @@ export class WebhooksService {
       if (wallet) {
         const creditAmount = new Prisma.Decimal(amount);
 
-        if (wallet.status === 'FROZEN' || wallet.status === 'CLOSED') {
+        const limits = KYC_LIMITS[wallet.kycTier];
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+
+        // Fetch daily credit sum
+        const aggregate = await this.prisma.ledgerEntry.aggregate({
+          where: {
+            walletId: wallet.id,
+            type: 'CREDIT',
+            status: 'SUCCESS',
+            createdAt: { gte: startOfDay },
+          },
+          _sum: { amount: true },
+        });
+
+        const dailySum = (aggregate._sum.amount || new Prisma.Decimal(0)).add(creditAmount);
+        const exceedsSingleLimit = creditAmount.gt(limits.singleTxLimit);
+        const exceedsDailyLimit = dailySum.gt(limits.dailyLimit);
+
+        if (
+          wallet.status === 'FROZEN' ||
+          wallet.status === 'CLOSED' ||
+          exceedsSingleLimit ||
+          exceedsDailyLimit
+        ) {
+          let quarantineReason = `Wallet is ${wallet.status}`;
+          if (exceedsSingleLimit) {
+            quarantineReason = `Exceeds single transaction limit of NGN ${limits.singleTxLimit.toFixed(2)} for ${wallet.kycTier}`;
+          } else if (exceedsDailyLimit) {
+            quarantineReason = `Exceeds daily deposit limit of NGN ${limits.dailyLimit.toFixed(2)} for ${wallet.kycTier}`;
+          }
+
           this.logger.warn(
-            `[NOMBA WEBHOOK] Wallet ${wallet.id} is ${wallet.status}. Quarantining deposit of ${amount}.`,
+            `[NOMBA WEBHOOK] Wallet ${wallet.id} transaction quarantined. Reason: ${quarantineReason}.`,
           );
 
           await this.prisma.$transaction(async (tx) => {
@@ -127,18 +154,18 @@ export class WebhooksService {
                 workspaceId: wallet.workspaceId,
                 type: 'CREDIT',
                 amount: creditAmount,
-                runningBalance: wallet.balance, 
+                runningBalance: wallet.balance, // Balance does not increase
                 status: 'QUARANTINED',
                 nombaRef: transactionId,
                 sessionId: sessionId || null,
-                description: narration || `Quarantined Deposit: Wallet is ${wallet.status}`,
+                description: narration || `Quarantined Deposit: ${quarantineReason}`,
               },
             });
           });
 
           return {
             status: 'quarantined',
-            message: `Deposit quarantined because wallet is ${wallet.status}`,
+            message: `Deposit quarantined: ${quarantineReason}`,
           };
         }
 
@@ -245,7 +272,7 @@ export class WebhooksService {
         });
 
         this.logger.log(
-          `[NOMBA WEBHOOK] Successfully credited temporary account ${tempAccount.id} with ${amount}.`,
+          `[NOMBA WEBHOOK] Successfully processed temporary virtual account deposit for ${tempAccount.accountNumber}`,
         );
       }
     }

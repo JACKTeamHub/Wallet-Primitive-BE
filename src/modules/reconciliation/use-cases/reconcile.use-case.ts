@@ -1,25 +1,20 @@
-import {
-  Injectable,
-  BadRequestException,
-  NotFoundException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '@infrastructure/prisma/prisma.service';
 import { NombaService } from '@infrastructure/nomba/nomba.service';
-import { ReconcileDto } from './dto/reconcile.dto';
+import { ReconcileDto } from '../dto/reconcile.dto';
 import { Prisma } from '@generated/prisma/client';
 import { randomUUID } from 'crypto';
 
 @Injectable()
-export class ReconciliationService {
-  private readonly logger = new Logger(ReconciliationService.name);
+export class ReconcileUseCase {
+  private readonly logger = new Logger(ReconcileUseCase.name);
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly nomba: NombaService,
   ) {}
 
-  async reconcile(workspaceId: string, dto: ReconcileDto) {
+  async execute(workspaceId: string, dto: ReconcileDto) {
     const { transactionId, action } = dto;
 
     this.logger.log(
@@ -68,6 +63,12 @@ export class ReconciliationService {
 
       if (!freshWallet) {
         throw new NotFoundException('Wallet not found');
+      }
+
+      if (freshWallet.status !== 'ACTIVE') {
+        throw new BadRequestException(
+          `Target wallet is inactive (Status: ${freshWallet.status}). Cannot complete reconciliation.`,
+        );
       }
 
       if (action === 'CREDIT') {

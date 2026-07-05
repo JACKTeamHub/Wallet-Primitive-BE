@@ -6,7 +6,6 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { WebhooksService } from './webhooks.service';
 import {
   ApiTags,
   ApiOperation,
@@ -15,10 +14,15 @@ import {
   ApiBody,
 } from '@nestjs/swagger';
 
+// Import Use Case
+import { HandleNombaWebhookUseCase } from './use-cases/handle-nomba-webhook.use-case';
+
 @ApiTags('webhooks')
 @Controller('webhook')
 export class WebhooksController {
-  constructor(private readonly webhooksService: WebhooksService) {}
+  constructor(
+    private readonly handleNombaWebhookUseCase: HandleNombaWebhookUseCase,
+  ) {}
 
   @Post('nomba')
   @HttpCode(HttpStatus.OK)
@@ -73,6 +77,6 @@ export class WebhooksController {
     @Body() payload: Record<string, any>,
     @Headers() headers: Record<string, string>,
   ) {
-    return this.webhooksService.handleNombaWebhook(payload, headers);
+    return this.handleNombaWebhookUseCase.execute(payload, headers);
   }
 }

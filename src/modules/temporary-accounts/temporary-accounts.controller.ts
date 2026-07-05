@@ -9,10 +9,14 @@ import {
 } from '@nestjs/common';
 import { ApiKeyGuard } from '@shared/guards/api-key.guard';
 import { WorkspaceId } from '@shared/decorators/workspace-id.decorator';
-import { TemporaryAccountsService } from './temporary-accounts.service';
 import { CreateTempAccountDto } from './dto/create-temp-account.dto';
 import { TemporaryAccount } from '@generated/prisma/client';
 import { ApiTags, ApiHeader, ApiOperation, ApiResponse } from '@nestjs/swagger';
+
+// Import Use Cases
+import { CreateTempAccountUseCase } from './use-cases/create-temp-account.use-case';
+import { FindAllTempAccountsUseCase } from './use-cases/find-all-temp-accounts.use-case';
+import { FindOneTempAccountUseCase } from './use-cases/find-one-temp-account.use-case';
 
 @ApiTags('temporary-accounts')
 @ApiHeader({
@@ -24,7 +28,9 @@ import { ApiTags, ApiHeader, ApiOperation, ApiResponse } from '@nestjs/swagger';
 @Controller('temporary-accounts')
 export class TemporaryAccountsController {
   constructor(
-    private readonly temporaryAccountsService: TemporaryAccountsService,
+    private readonly createTempAccountUseCase: CreateTempAccountUseCase,
+    private readonly findAllTempAccountsUseCase: FindAllTempAccountsUseCase,
+    private readonly findOneTempAccountUseCase: FindOneTempAccountUseCase,
   ) {}
 
   @Post()
@@ -37,7 +43,7 @@ export class TemporaryAccountsController {
     @WorkspaceId() workspaceId: string,
     @Body() dto: CreateTempAccountDto,
   ): Promise<TemporaryAccount> {
-    return this.temporaryAccountsService.create(workspaceId, dto);
+    return this.createTempAccountUseCase.execute(workspaceId, dto);
   }
 
   @Get()
@@ -45,7 +51,7 @@ export class TemporaryAccountsController {
   async findAll(
     @WorkspaceId() workspaceId: string,
   ): Promise<TemporaryAccount[]> {
-    return this.temporaryAccountsService.findAll(workspaceId);
+    return this.findAllTempAccountsUseCase.execute(workspaceId);
   }
 
   @Get(':id')
@@ -54,7 +60,7 @@ export class TemporaryAccountsController {
     @WorkspaceId() workspaceId: string,
     @Param('id') id: string,
   ): Promise<TemporaryAccount> {
-    const tempAccount = await this.temporaryAccountsService.findOne(
+    const tempAccount = await this.findOneTempAccountUseCase.execute(
       workspaceId,
       id,
     );

@@ -1,18 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@infrastructure/prisma/prisma.service';
 import { NombaService } from '@infrastructure/nomba/nomba.service';
-import { CreateTempAccountDto } from './dto/create-temp-account.dto';
+import { CreateTempAccountDto } from '../dto/create-temp-account.dto';
 import { Prisma, TemporaryAccount } from '@generated/prisma/client';
 import { randomUUID } from 'crypto';
 
 @Injectable()
-export class TemporaryAccountsService {
+export class CreateTempAccountUseCase {
   constructor(
     private readonly prisma: PrismaService,
     private readonly nombaService: NombaService,
   ) {}
 
-  async create(
+  async execute(
     workspaceId: string,
     dto: CreateTempAccountDto,
   ): Promise<TemporaryAccount> {
@@ -49,22 +49,6 @@ export class TemporaryAccountsService {
         expiresAt,
         status: 'ACTIVE',
       },
-    });
-  }
-
-  async findOne(
-    workspaceId: string,
-    id: string,
-  ): Promise<TemporaryAccount | null> {
-    return this.prisma.temporaryAccount.findFirst({
-      where: { id, workspaceId },
-    });
-  }
-
-  async findAll(workspaceId: string): Promise<TemporaryAccount[]> {
-    return this.prisma.temporaryAccount.findMany({
-      where: { workspaceId },
-      orderBy: { createdAt: 'desc' },
     });
   }
 }
