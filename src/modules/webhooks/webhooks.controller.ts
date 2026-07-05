@@ -1,10 +1,14 @@
 import {
   Controller,
   Post,
+  Get,
   Body,
   Headers,
   HttpCode,
   HttpStatus,
+  UseGuards,
+  Query,
+  Param,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -13,15 +17,24 @@ import {
   ApiHeader,
   ApiBody,
 } from '@nestjs/swagger';
+import { ApiKeyGuard } from '@shared/guards/api-key.guard';
+import { WorkspaceId } from '@shared/decorators/workspace-id.decorator';
+import { WebhookQueryDto } from './dto/webhook-query.dto';
+import { PaginatedResult } from '@shared/utils/pagination.util';
+import { ProcessedWebhook } from '@generated/prisma/client';
 
-// Import Use Case
+// Import Use Cases
 import { HandleNombaWebhookUseCase } from './use-cases/handle-nomba-webhook.use-case';
+import { ListWebhooksUseCase } from './use-cases/list-webhooks.use-case';
+import { GetWebhookDetailUseCase } from './use-cases/get-webhook-detail.use-case';
 
 @ApiTags('webhooks')
-@Controller('webhook')
+@Controller(['webhook', 'webhooks'])
 export class WebhooksController {
   constructor(
     private readonly handleNombaWebhookUseCase: HandleNombaWebhookUseCase,
+    private readonly listWebhooksUseCase: ListWebhooksUseCase,
+    private readonly getWebhookDetailUseCase: GetWebhookDetailUseCase,
   ) {}
 
   @Post('nomba')
@@ -78,5 +91,38 @@ export class WebhooksController {
     @Headers() headers: Record<string, string>,
   ) {
     return this.handleNombaWebhookUseCase.execute(payload, headers);
+  }
+
+  @Get()
+  @UseGuards(ApiKeyGuard)
+  @ApiHeader({
+    name: 'x-api-key',
+    description: 'Developer workspace API key',
+    required: true,
+  })
+  @ApiOperation({ summary: 'List all processed webhook events' })
+  @ApiResponse({ status: 200, description: 'Webhooks list retrieved successfully' })
+  async list(
+    @WorkspaceId() workspaceId: string,
+    @Query() query: WebhookQueryDto,
+  ): Promise<PaginatedResult<ProcessedWebhook>> {
+    return this.listWebhooksUseCase.execute(workspaceId, query);
+  }
+
+  @Get(':id')
+  @UseGuards(ApiKeyGuard)
+  @ApiHeader({
+    name: 'x-api-key',
+    description: 'Developer workspace API key',
+    required: true,
+  })
+  @ApiOperation({ summary: 'Get a specific processed webhook details' })
+  @ApiResponse({ status: 200, description: 'Processed webhook details retrieved successfully' })
+  @ApiResponse({ status: 404, description: 'Webhook not found' })
+  async getDetail(
+    @WorkspaceId() workspaceId: string,
+    @Param('id') id: string,
+  ) {
+    return this.getWebhookDetailUseCase.execute(workspaceId, id);
   }
 }

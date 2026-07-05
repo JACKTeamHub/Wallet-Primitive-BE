@@ -15,6 +15,7 @@ import { WorkspacesModule } from './modules/workspaces/workspaces.module';
 import { EmailModule } from './infrastructure/email/email.module';
 import { BullModule } from '@nestjs/bullmq';
 import { ReconciliationModule } from './modules/reconciliation/reconciliation.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -49,6 +50,7 @@ import { AppController } from './app.controller';
     WorkspacesModule,
     EmailModule,
     ReconciliationModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [

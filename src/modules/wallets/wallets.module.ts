@@ -9,6 +9,8 @@ import { UpdateWalletStatusUseCase } from './use-cases/update-wallet-status.use-
 import { TransferUseCase } from './use-cases/transfer.use-case';
 import { GenerateStatementUseCase } from './use-cases/generate-statement.use-case';
 import { UpdateKycUseCase } from './use-cases/update-kyc.use-case';
+import { ListWalletsUseCase } from './use-cases/list-wallets.use-case';
+import { GetWalletDetailUseCase } from './use-cases/get-wallet-detail.use-case';
 
 @Module({
   controllers: [WalletsController],
@@ -20,6 +22,8 @@ import { UpdateKycUseCase } from './use-cases/update-kyc.use-case';
     TransferUseCase,
     GenerateStatementUseCase,
     UpdateKycUseCase,
+    ListWalletsUseCase,
+    GetWalletDetailUseCase,
   ],
   exports: [
     CreateWalletUseCase,
@@ -29,6 +33,8 @@ import { UpdateKycUseCase } from './use-cases/update-kyc.use-case';
     TransferUseCase,
     GenerateStatementUseCase,
     UpdateKycUseCase,
+    ListWalletsUseCase,
+    GetWalletDetailUseCase,
   ],
 })
 export class WalletsModule {}
