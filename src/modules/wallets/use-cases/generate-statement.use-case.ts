@@ -1,10 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '@infrastructure/prisma/prisma.service';
+import { Injectable } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
+import { GetStatementUseCase } from './get-statement.use-case';
 
 @Injectable()
 export class GenerateStatementUseCase {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly getStatementUseCase: GetStatementUseCase) {}
 
   async execute(
     workspaceId: string,
@@ -12,29 +12,13 @@ export class GenerateStatementUseCase {
     startDateStr?: string,
     endDateStr?: string,
   ): Promise<Buffer> {
-    const wallet = await this.prisma.wallet.findFirst({
-      where: { id: walletId, workspaceId },
-      include: { customer: true },
-    });
-
-    if (!wallet) {
-      throw new NotFoundException('Wallet not found');
-    }
-
-    const startDate = startDateStr ? new Date(startDateStr) : new Date(0);
-    const endDate = endDateStr ? new Date(endDateStr) : new Date();
-
-    const ledgerEntries = await this.prisma.ledgerEntry.findMany({
-      where: {
-        walletId,
+    const { wallet, transactions: ledgerEntries } =
+      await this.getStatementUseCase.execute(
         workspaceId,
-        createdAt: {
-          gte: startDate,
-          lte: endDate,
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        walletId,
+        startDateStr,
+        endDateStr,
+      );
 
     return new Promise<Buffer>((resolve, reject) => {
       const doc = new PDFDocument({ margin: 50 });

@@ -20,6 +20,7 @@ import { Wallet, LedgerEntry, Prisma } from '@generated/prisma/client';
 import { LedgerQueryDto } from './dto/ledger-query.dto';
 import { UpdateKycDto } from './dto/update-kyc.dto';
 import { WalletQueryDto } from './dto/wallet-query.dto';
+import { StatementQueryDto } from './dto/statement-query.dto';
 import { PaginatedResult } from '@shared/utils/pagination.util';
 
 // Import Use Cases
@@ -29,6 +30,7 @@ import { GetWalletLedgerUseCase } from './use-cases/get-wallet-ledger.use-case';
 import { UpdateWalletStatusUseCase } from './use-cases/update-wallet-status.use-case';
 import { TransferUseCase } from './use-cases/transfer.use-case';
 import { GenerateStatementUseCase } from './use-cases/generate-statement.use-case';
+import { GetStatementUseCase } from './use-cases/get-statement.use-case';
 import { UpdateKycUseCase } from './use-cases/update-kyc.use-case';
 import { ListWalletsUseCase } from './use-cases/list-wallets.use-case';
 import { GetWalletDetailUseCase } from './use-cases/get-wallet-detail.use-case';
@@ -49,6 +51,7 @@ export class WalletsController {
     private readonly updateWalletStatusUseCase: UpdateWalletStatusUseCase,
     private readonly transferUseCase: TransferUseCase,
     private readonly generateStatementUseCase: GenerateStatementUseCase,
+    private readonly getStatementUseCase: GetStatementUseCase,
     private readonly updateKycUseCase: UpdateKycUseCase,
     private readonly listWalletsUseCase: ListWalletsUseCase,
     private readonly getWalletDetailUseCase: GetWalletDetailUseCase,
@@ -140,6 +143,29 @@ export class WalletsController {
     @Body() dto: UpdateKycDto,
   ): Promise<Wallet> {
     return this.updateKycUseCase.execute(workspaceId, id, dto);
+  }
+
+  @Get(':id/statement')
+  @ApiOperation({
+    summary: 'Get wallet transaction statement summary and transactions in a date range',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Statement retrieved successfully',
+  })
+  @ApiResponse({ status: 404, description: 'Wallet not found' })
+  async getStatement(
+    @WorkspaceId() workspaceId: string,
+    @Param('id') id: string,
+    @Query() query: StatementQueryDto,
+  ) {
+    const { wallet, ...statementData } = await this.getStatementUseCase.execute(
+      workspaceId,
+      id,
+      query.startDate,
+      query.endDate,
+    );
+    return statementData;
   }
 
   @Get(':id/statement/pdf')
