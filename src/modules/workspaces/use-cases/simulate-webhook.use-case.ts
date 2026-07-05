@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@infrastructure/prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { SimulateWebhookDto } from '../dto/simulate-webhook.dto';
-import { WebhooksService } from '../../webhooks/webhooks.service';
+import { HandleNombaWebhookUseCase } from '../../webhooks/use-cases/handle-nomba-webhook.use-case';
 import { randomUUID } from 'crypto';
 import * as crypto from 'crypto';
 
@@ -11,7 +11,7 @@ export class SimulateWebhookUseCase {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
-    private readonly webhooksService: WebhooksService,
+    private readonly handleNombaWebhookUseCase: HandleNombaWebhookUseCase,
   ) {}
 
   async execute(workspaceId: string, dto: SimulateWebhookDto) {
@@ -72,6 +72,6 @@ export class SimulateWebhookUseCase {
       'nomba-timestamp': timestamp,
     };
 
-    return this.webhooksService.handleNombaWebhook(payload, headers);
+    return this.handleNombaWebhookUseCase.execute(payload, headers);
   }
 }

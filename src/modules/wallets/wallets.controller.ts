@@ -18,6 +18,7 @@ import { UpdateWalletStatusDto } from './dto/update-wallet-status.dto';
 import { ApiTags, ApiHeader, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Wallet, LedgerEntry, Prisma } from '@generated/prisma/client';
 import { LedgerQueryDto } from './dto/ledger-query.dto';
+import { UpdateKycDto } from './dto/update-kyc.dto';
 import { PaginatedResult } from '@shared/utils/pagination.util';
 
 // Import Use Cases
@@ -27,6 +28,7 @@ import { GetWalletLedgerUseCase } from './use-cases/get-wallet-ledger.use-case';
 import { UpdateWalletStatusUseCase } from './use-cases/update-wallet-status.use-case';
 import { TransferUseCase } from './use-cases/transfer.use-case';
 import { GenerateStatementUseCase } from './use-cases/generate-statement.use-case';
+import { UpdateKycUseCase } from './use-cases/update-kyc.use-case';
 
 @ApiTags('wallets')
 @ApiHeader({
@@ -44,6 +46,7 @@ export class WalletsController {
     private readonly updateWalletStatusUseCase: UpdateWalletStatusUseCase,
     private readonly transferUseCase: TransferUseCase,
     private readonly generateStatementUseCase: GenerateStatementUseCase,
+    private readonly updateKycUseCase: UpdateKycUseCase,
   ) {}
 
   @Post()
@@ -116,6 +119,19 @@ export class WalletsController {
     @Body() dto: UpdateWalletStatusDto,
   ): Promise<Wallet> {
     return this.updateWalletStatusUseCase.execute(workspaceId, id, dto);
+  }
+
+  @Patch(':id/kyc')
+  @ApiOperation({ summary: 'Upgrade wallet KYC tier (Requires API Key)' })
+  @ApiResponse({ status: 200, description: 'KYC tier updated successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid KYC requirements (BVN/NIN missing)' })
+  @ApiResponse({ status: 404, description: 'Wallet not found' })
+  async updateKyc(
+    @WorkspaceId() workspaceId: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateKycDto,
+  ): Promise<Wallet> {
+    return this.updateKycUseCase.execute(workspaceId, id, dto);
   }
 
   @Get(':id/statement/pdf')

@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '@infrastructure/prisma/prisma.service';
 import { Prisma } from '@generated/prisma/client';
 import { TransferDto } from '../dto/transfer.dto';
+import { KYC_LIMITS } from '../../../shared/utils/kyc-limits.util';
 import { randomUUID } from 'crypto';
 
 @Injectable()
@@ -51,6 +52,34 @@ export class TransferUseCase {
       if (recipient.status !== 'ACTIVE') {
         throw new BadRequestException(
           `Recipient wallet is ${recipient.status.toLowerCase()}`,
+        );
+      }
+
+      // Enforce KYC limits for the sender (spending limit check)
+      const limits = KYC_LIMITS[sender.kycTier];
+      if (transferAmount.gt(limits.singleTxLimit)) {
+        throw new BadRequestException(
+          `Transfer amount exceeds the single transaction limit of NGN ${limits.singleTxLimit.toFixed(2)} for ${sender.kycTier}`,
+        );
+      }
+
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+
+      const aggregate = await tx.ledgerEntry.aggregate({
+        where: {
+          walletId: sender.id,
+          type: 'DEBIT',
+          status: 'SUCCESS',
+          createdAt: { gte: startOfDay },
+        },
+        _sum: { amount: true },
+      });
+
+      const dailySum = (aggregate._sum.amount || new Prisma.Decimal(0)).add(transferAmount);
+      if (dailySum.gt(limits.dailyLimit)) {
+        throw new BadRequestException(
+          `Transfer exceeds your daily spending limit of NGN ${limits.dailyLimit.toFixed(2)} for ${sender.kycTier}`,
         );
       }
 

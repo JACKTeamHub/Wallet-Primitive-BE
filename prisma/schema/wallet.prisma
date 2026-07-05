@@ -12,6 +12,12 @@ enum TempAccountStatus {
   CANCELLED
 }
 
+enum KycTier {
+  TIER_1
+  TIER_2
+  TIER_3
+}
+
 model Customer {
   id          String    @id @default(uuid())
   email       String
@@ -35,6 +41,9 @@ model Wallet {
   accountNumber String         @unique
   bankName      String
   status        WalletStatus   @default(ACTIVE)
+  kycTier       KycTier        @default(TIER_1)
+  bvn           String?
+  nin           String?
   balance       Decimal        @default(0.00) @db.Decimal(18, 4)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
