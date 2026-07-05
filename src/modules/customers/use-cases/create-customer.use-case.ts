@@ -7,7 +7,10 @@ import { Customer } from '@generated/prisma/client';
 export class CreateCustomerUseCase {
   constructor(private readonly prisma: PrismaService) {}
 
-  async execute(workspaceId: string, dto: CreateCustomerDto): Promise<Customer> {
+  async execute(
+    workspaceId: string,
+    dto: CreateCustomerDto,
+  ): Promise<Customer> {
     const existingCustomer = await this.prisma.customer.findUnique({
       where: {
         workspaceId_email: {

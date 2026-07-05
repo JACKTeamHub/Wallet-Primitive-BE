@@ -60,7 +60,10 @@ export class CreateWalletUseCase {
       entity: 'Wallet',
       entityId: wallet.id,
       actor: 'DeveloperConsole',
-      metadata: { accountNumber: wallet.accountNumber, customerEmail: customer.email },
+      metadata: {
+        accountNumber: wallet.accountNumber,
+        customerEmail: customer.email,
+      },
     });
 
     return wallet;

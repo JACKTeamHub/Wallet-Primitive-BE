@@ -1,4 +1,9 @@
-import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from '@infrastructure/prisma/prisma.service';
 import { NombaService } from '@infrastructure/nomba/nomba.service';
 import { ReconcileDto } from '../dto/reconcile.dto';
@@ -142,8 +147,7 @@ export class ReconcileUseCase {
         if (doubleCheckFlag) {
           return {
             status: 'ALREADY_PROCESSED',
-            message:
-              'This transaction was already processed.',
+            message: 'This transaction was already processed.',
             transactionId,
           };
         }

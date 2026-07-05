@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '@infrastructure/prisma/prisma.service';
 import { Wallet } from '@generated/prisma/client';
 import { UpdateKycDto } from '../dto/update-kyc.dto';
@@ -32,7 +36,9 @@ export class UpdateKycUseCase {
     if (bvnToVerify) {
       const bvnRegex = /^\d{11}$/;
       if (!bvnRegex.test(bvnToVerify)) {
-        throw new BadRequestException('Invalid BVN format. Must be exactly 11 digits.');
+        throw new BadRequestException(
+          'Invalid BVN format. Must be exactly 11 digits.',
+        );
       }
     }
 
@@ -48,7 +54,9 @@ export class UpdateKycUseCase {
     if (ninToVerify) {
       const ninRegex = /^\d{11}$/;
       if (!ninRegex.test(ninToVerify)) {
-        throw new BadRequestException('Invalid NIN format. Must be exactly 11 digits.');
+        throw new BadRequestException(
+          'Invalid NIN format. Must be exactly 11 digits.',
+        );
       }
     }
 

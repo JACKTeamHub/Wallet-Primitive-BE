@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '@infrastructure/prisma/prisma.service';
 import { Prisma } from '@generated/prisma/client';
 import { TransferDto } from '../dto/transfer.dto';
@@ -80,7 +84,9 @@ export class TransferUseCase {
         _sum: { amount: true },
       });
 
-      const dailySum = (aggregate._sum.amount || new Prisma.Decimal(0)).add(transferAmount);
+      const dailySum = (aggregate._sum.amount || new Prisma.Decimal(0)).add(
+        transferAmount,
+      );
       if (dailySum.gt(limits.dailyLimit)) {
         throw new BadRequestException(
           `Transfer exceeds your daily spending limit of NGN ${limits.dailyLimit.toFixed(2)} for ${sender.kycTier}`,
