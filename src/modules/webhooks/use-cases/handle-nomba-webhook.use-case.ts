@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { PrismaService } from '@infrastructure/prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@generated/prisma/client';
@@ -19,10 +24,7 @@ export class HandleNombaWebhookUseCase {
       'NombaHackathon2026';
   }
 
-  async execute(
-    payload: Record<string, any>,
-    headers: Record<string, string>,
-  ) {
+  async execute(payload: Record<string, any>, headers: Record<string, string>) {
     const signature = headers['nomba-signature'];
     const timestamp = headers['nomba-timestamp'];
 
@@ -119,7 +121,9 @@ export class HandleNombaWebhookUseCase {
           _sum: { amount: true },
         });
 
-        const dailySum = (aggregate._sum.amount || new Prisma.Decimal(0)).add(creditAmount);
+        const dailySum = (aggregate._sum.amount || new Prisma.Decimal(0)).add(
+          creditAmount,
+        );
         const exceedsSingleLimit = creditAmount.gt(limits.singleTxLimit);
         const exceedsDailyLimit = dailySum.gt(limits.dailyLimit);
 
@@ -158,11 +162,14 @@ export class HandleNombaWebhookUseCase {
                 status: 'QUARANTINED',
                 nombaRef: transactionId,
                 sessionId: sessionId || null,
-                description: narration || `Quarantined Deposit: ${quarantineReason}`,
+                description:
+                  narration || `Quarantined Deposit: ${quarantineReason}`,
                 metadata: {
                   senderName: payload.data?.transaction?.senderName || null,
-                  senderBankName: payload.data?.transaction?.senderBankName || null,
-                  senderAccountNumber: payload.data?.transaction?.senderAccountNumber || null,
+                  senderBankName:
+                    payload.data?.transaction?.senderBankName || null,
+                  senderAccountNumber:
+                    payload.data?.transaction?.senderAccountNumber || null,
                   rawPayload: payload.data || null,
                 },
               },
@@ -210,8 +217,10 @@ export class HandleNombaWebhookUseCase {
               description: narration || `Nomba Webhook Deposit of ${amount}`,
               metadata: {
                 senderName: payload.data?.transaction?.senderName || null,
-                senderBankName: payload.data?.transaction?.senderBankName || null,
-                senderAccountNumber: payload.data?.transaction?.senderAccountNumber || null,
+                senderBankName:
+                  payload.data?.transaction?.senderBankName || null,
+                senderAccountNumber:
+                  payload.data?.transaction?.senderAccountNumber || null,
                 rawPayload: payload.data || null,
               },
             },

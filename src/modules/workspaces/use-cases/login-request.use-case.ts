@@ -37,7 +37,9 @@ export class LoginRequestUseCase {
     const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
 
     if (process.env.NODE_ENV !== 'production') {
-      this.logger.log(`[Login OTP] Generated OTP token for ${dto.email}: ${otp}`);
+      this.logger.log(
+        `[Login OTP] Generated OTP token for ${dto.email}: ${otp}`,
+      );
     }
 
     await this.prisma.developerUser.update({
