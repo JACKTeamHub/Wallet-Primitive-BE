@@ -18,6 +18,8 @@ import { TransferDto } from './dto/transfer.dto';
 import { UpdateWalletStatusDto } from './dto/update-wallet-status.dto';
 import { ApiTags, ApiHeader, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Wallet, LedgerEntry, Prisma } from '@generated/prisma/client';
+import { LedgerQueryDto } from './dto/ledger-query.dto';
+import { PaginatedResult } from '../../shared/utils/pagination.util';
 
 @ApiTags('wallets')
 @ApiHeader({
@@ -73,12 +75,16 @@ export class WalletsController {
   }
 
   @Get(':id/ledger')
-  @ApiOperation({ summary: 'Get transaction history / ledger entries' })
+  @ApiOperation({
+    summary:
+      'Get transaction history / ledger entries with pagination and filters',
+  })
   async getLedger(
     @WorkspaceId() workspaceId: string,
     @Param('id') id: string,
-  ): Promise<LedgerEntry[]> {
-    return this.walletsService.getWalletLedger(workspaceId, id);
+    @Query() query: LedgerQueryDto,
+  ): Promise<PaginatedResult<LedgerEntry>> {
+    return this.walletsService.getWalletLedger(workspaceId, id, query);
   }
 
   @Patch(':id/status')

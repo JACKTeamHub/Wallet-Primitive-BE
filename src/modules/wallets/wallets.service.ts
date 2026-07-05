@@ -11,6 +11,11 @@ import { UpdateWalletStatusDto } from './dto/update-wallet-status.dto';
 import { Prisma, Wallet, LedgerEntry } from '@generated/prisma/client';
 import { randomUUID } from 'crypto';
 import { AuditLogService } from '@shared/services/audit-log.service';
+import { LedgerQueryDto } from './dto/ledger-query.dto';
+import {
+  PaginatedResult,
+  createPaginatedResponse,
+} from '../../shared/utils/pagination.util';
 import PDFDocument from 'pdfkit';
 
 @Injectable()
@@ -87,7 +92,8 @@ export class WalletsService {
   async getWalletLedger(
     workspaceId: string,
     walletId: string,
-  ): Promise<LedgerEntry[]> {
+    query: LedgerQueryDto,
+  ): Promise<PaginatedResult<LedgerEntry>> {
     // Confirm wallet exists
     const wallet = await this.prisma.wallet.findFirst({
       where: { id: walletId, workspaceId },
@@ -97,10 +103,38 @@ export class WalletsService {
       throw new NotFoundException('Wallet not found');
     }
 
-    return this.prisma.ledgerEntry.findMany({
-      where: { walletId, workspaceId },
-      orderBy: { createdAt: 'desc' },
-    });
+    const { page, limit, search, type, startDate, endDate } = query;
+    const skip = (page - 1) * limit;
+
+    const whereClause: Prisma.LedgerEntryWhereInput = {
+      walletId,
+      workspaceId,
+      ...(type && { type }),
+      ...(search && {
+        description: {
+          contains: search,
+          mode: 'insensitive',
+        },
+      }),
+      ...((startDate || endDate) && {
+        createdAt: {
+          ...(startDate && { gte: new Date(startDate) }),
+          ...(endDate && { lte: new Date(endDate) }),
+        },
+      }),
+    };
+
+    const [total, data] = await Promise.all([
+      this.prisma.ledgerEntry.count({ where: whereClause }),
+      this.prisma.ledgerEntry.findMany({
+        where: whereClause,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+    ]);
+
+    return createPaginatedResponse(data, total, page, limit);
   }
 
   async transfer(
