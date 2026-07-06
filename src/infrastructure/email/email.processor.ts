@@ -2,13 +2,11 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
 import { PrismaService } from '@infrastructure/prisma/prisma.service';
 
 @Processor('email-delivery')
 export class EmailProcessor extends WorkerHost {
   private readonly logger = new Logger(EmailProcessor.name);
-  private transporter: nodemailer.Transporter | null = null;
 
   constructor(
     private readonly configService: ConfigService,
@@ -24,31 +22,13 @@ export class EmailProcessor extends WorkerHost {
         `[EmailProcessor] Processing job ${job.id} of type "${type}" for ${email}`,
       );
 
-      if (!this.transporter) {
-        const rawHost = this.configService.get<string>('SMTP_HOST') || '';
-        const host = rawHost.replace(/['"]/g, '');
-        const port = this.configService.get<number>('SMTP_PORT');
-        const user = this.configService.get<string>('SMTP_USER');
-        const pass = this.configService.get<string>('SMTP_PASS');
-        const secure = this.configService.get<boolean>('SMTP_SECURE') === true;
+      const apiKey = this.configService.get<string>('RESEND_API_KEY');
+      const from = this.configService.get<string>('SMTP_FROM') || 'onboarding@resend.dev';
 
-        if (!host || !port || !user || !pass) {
-          throw new Error(
-            'SMTP configurations are missing in environment variables. Please define SMTP_HOST, SMTP_PORT, SMTP_USER, and SMTP_PASS.',
-          );
-        }
-
-        this.logger.log(
-          `[EmailProcessor] Initializing SMTP transporter: ${host}:${port}`,
+      if (!apiKey) {
+        throw new Error(
+          'RESEND_API_KEY is missing in environment variables. Please define it in your Render settings.',
         );
-        this.transporter = nodemailer.createTransport({
-          host,
-          port,
-          secure,
-          auth: { user, pass },
-          connectionTimeout: 10000,
-          socketTimeout: 10000,
-        });
       }
 
       let subject = '';
@@ -90,20 +70,38 @@ export class EmailProcessor extends WorkerHost {
         `;
       }
 
-      const info = await this.transporter.sendMail({
-        from:
-          this.configService.get<string>('SMTP_FROM') ||
-          '"Wallet-Primitive Security" <security@wallet-primitive.io>',
-        to: email,
-        subject,
-        html: htmlContent,
-      });
-
       this.logger.log(
-        `[EmailProcessor] Email sent successfully. Message ID: ${info.messageId}`,
+        `[EmailProcessor] Sending email via Resend API to ${email}`,
       );
 
-      return { messageId: info.messageId };
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          from,
+          to: email,
+          subject,
+          html: htmlContent,
+        }),
+      });
+
+      const responseData = (await response.json()) as any;
+
+      if (!response.ok) {
+        throw new Error(
+          `Resend API error (${response.status}): ${JSON.stringify(responseData)}`,
+        );
+      }
+
+      const messageId = responseData.id;
+      this.logger.log(
+        `[EmailProcessor] Email sent successfully via Resend. Message ID: ${messageId}`,
+      );
+
+      return { messageId };
     } catch (err: any) {
       this.logger.error(
         `[EmailProcessor] Job ${job.id} failed: ${err.message}`,
