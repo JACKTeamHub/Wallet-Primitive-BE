@@ -160,7 +160,7 @@ export class WalletsController {
     @Param('id') id: string,
     @Query() query: StatementQueryDto,
   ) {
-    const { wallet, ...statementData } = await this.getStatementUseCase.execute(
+    const { ...statementData } = await this.getStatementUseCase.execute(
       workspaceId,
       id,
       query.startDate,

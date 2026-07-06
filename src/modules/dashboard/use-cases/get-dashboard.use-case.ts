@@ -95,8 +95,7 @@ export class GetDashboardUseCase {
 
     for (const stat of walletStatusStats) {
       if (stat.status in statusCounts) {
-        statusCounts[stat.status as keyof typeof statusCounts] =
-          stat._count._all;
+        statusCounts[stat.status] = stat._count._all;
       }
     }
 

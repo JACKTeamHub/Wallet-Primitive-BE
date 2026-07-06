@@ -27,16 +27,21 @@ import { AppController } from './app.controller';
     }),
     BullModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        connection: {
-          host: configService.get<string>('REDIS_HOST') || '127.0.0.1',
-          port: configService.get<number>('REDIS_PORT') || 6379,
-          password: configService.get<string>('REDIS_PASSWORD'),
-          ...(configService.get<string>('REDIS_TLS') === 'true' && {
-            tls: {},
-          }),
-        },
-      }),
+      useFactory: (configService: ConfigService) => {
+        const url = new URL(
+          configService.get<string>('REDIS_URL') || 'redis://127.0.0.1:6379',
+        );
+        return {
+          connection: {
+            host: url.hostname,
+            port: parseInt(url.port || '6379', 10),
+            username: url.username || undefined,
+            password: url.password
+              ? decodeURIComponent(url.password)
+              : undefined,
+          },
+        };
+      },
       inject: [ConfigService],
     }),
     AppLoggerModule,
