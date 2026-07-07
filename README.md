@@ -174,12 +174,44 @@ The server will start at `http://localhost:9999`.
 When the server is running, the interactive Swagger OpenAPI docs are served at:
 👉 **`http://localhost:9999/api`**
 
-### Testing Flow (Multi-Tenant Demo):
-1. **Authorize**: Click **"Authorize"** at the top right of the Swagger UI. Enter one of the seeded API keys to act as that organization:
-   * **Chowdeck API Key**: `wp_live_chowdeck_test_key_123456`
-   * **Jumia API Key**: `wp_live_jumia_test_key_123456`
-   * **GIG Logistics API Key**: `wp_live_gig_test_key_123456`
-2. **Retrieve Wallet**: Call `GET /wallets` or check balance details to observe each organization's isolated wallet structure.
+---
+
+## 👥 Demo Logins & Test Accounts
+
+You can log in to the **Developer Console Web UI** (Frontend) or authenticate API requests using the following pre-seeded workspace accounts:
+
+### 1. Developer Console Logins (Web UI)
+Use the following credentials on the login page:
+* **Password for all accounts**: `password123`
+* **Workspace Emails**:
+  * 🍔 **Chowdeck**: `dev@chowdeck.com`
+  * 🛍️ **Jumia**: `dev@jumia.com`
+  * 🚚 **GIG Logistics**: `dev@giglogistics.com`
+
+### 2. Sandbox API Keys (Swagger / API auth)
+Add these keys to the `x-api-key` header to authenticate API requests:
+* **Chowdeck API Key**: `wp_live_chowdeck_test_key_123456`
+* **Jumia API Key**: `wp_live_jumia_test_key_123456`
+* **GIG Logistics API Key**: `wp_live_gig_test_key_123456`
+
+### 3. Sample Virtual Account Numbers (NUBAN)
+Use these account numbers for testing internal transfers or webhook deposit simulations:
+* **Chowdeck Wallets**:
+  * `9910000558` (Tunde Bakare)
+  * `9910000565` (Chioma Nnaji)
+  * `9910000572` (Abubakar Musa)
+* **Jumia Wallets**:
+  * `9910000465` (Tunde Bakare)
+  * `9910000472` (Chioma Nnaji)
+* **GIG Logistics Wallets**:
+  * `9910000713` (Tunde Bakare)
+  * `9910000720` (Chioma Nnaji)
+
+---
+
+### 🚀 Multi-Tenant Demo Flow:
+1. **Authorize**: Click **"Authorize"** at the top right of the Swagger UI and enter one of the API keys above, or log in to the Web Console with the emails above.
+2. **Retrieve Wallet**: Check wallet balance details to observe each organization's isolated wallet structure.
 3. **Simulate Deposit Webhooks**: Trigger an incoming payment for the tenant's wallet using the Webhook Simulator route:
    * `POST /workspaces/{workspaceId}/simulate-webhook`
 4. **Enforce KYC Tier Upgrades**: Upgrade a wallet's limits using `PATCH /wallets/{walletId}/kyc`. Pass a valid 11-digit BVN or NIN to upgrade to Tier 2/3 and test transfer limits.

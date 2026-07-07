@@ -23,17 +23,8 @@ export class EmailProcessor extends WorkerHost {
         `[EmailProcessor] Processing job ${job.id} of type "${type}" for ${email}`,
       );
 
+      const brevoApiKey = this.configService.get<string>('BREVO_API_KEY');
       const from = this.configService.get<string>('SMTP_FROM');
-      const host = this.configService.get<string>('SMTP_HOST');
-      const port = this.configService.get<number>('SMTP_PORT');
-      const user = this.configService.get<string>('SMTP_USER');
-      const pass = this.configService.get<string>('SMTP_PASS');
-
-      if (!host || !user || !pass || !from) {
-        throw new Error(
-          'SMTP credentials (host, user, pass, from) are missing in environment variables. Please configure them in your settings.',
-        );
-      }
 
       let subject = '';
       let htmlContent = '';
@@ -74,7 +65,63 @@ export class EmailProcessor extends WorkerHost {
         `;
       }
 
-      this.logger.log(`[EmailProcessor] Sending email via SMTP to ${email}`);
+      // Check if Brevo HTTP API should be used
+      if (brevoApiKey) {
+        if (!from) {
+          throw new Error(
+            'SMTP_FROM is required in environment variables to set the sender header for Brevo API.',
+          );
+        }
+
+        this.logger.log(
+          `[EmailProcessor] Sending email via Brevo HTTP API to ${email}`,
+        );
+
+        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+          method: 'POST',
+          headers: {
+            'api-key': brevoApiKey,
+            'Content-Type': 'application/json',
+            accept: 'application/json',
+          },
+          body: JSON.stringify({
+            sender: { name: 'Wallet Primitive', email: from },
+            to: [{ email }],
+            subject,
+            htmlContent,
+          }),
+        });
+
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new Error(
+            `Brevo HTTP API request failed with status ${response.status}: ${errText}`,
+          );
+        }
+
+        const info = await response.json();
+        this.logger.log(
+          `[EmailProcessor] Email sent successfully via Brevo HTTP API. Message ID: ${info.messageId}`,
+        );
+
+        return { messageId: info.messageId };
+      }
+
+      // Fallback to standard SMTP
+      const host = this.configService.get<string>('SMTP_HOST');
+      const port = this.configService.get<number>('SMTP_PORT');
+      const user = this.configService.get<string>('SMTP_USER');
+      const pass = this.configService.get<string>('SMTP_PASS');
+
+      if (!host || !user || !pass || !from) {
+        throw new Error(
+          'SMTP credentials (host, user, pass, from) are missing in environment variables. Please configure them in your settings.',
+        );
+      }
+
+      this.logger.log(
+        `[EmailProcessor] Sending email via fallback SMTP to ${email}`,
+      );
 
       const transporter = nodemailer.createTransport({
         host,

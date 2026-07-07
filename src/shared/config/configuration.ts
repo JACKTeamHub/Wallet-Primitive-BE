@@ -17,11 +17,12 @@ export const envSchema = z.object({
     .string()
     .length(32, 'Encryption key must be exactly 32 bytes'),
   JWT_SECRET: z.string(),
-  SMTP_HOST: z.string().default('smtp.gmail.com'),
-  SMTP_PORT: z.coerce.number().default(465),
-  SMTP_USER: z.string(),
-  SMTP_PASS: z.string(),
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().default(465).optional(),
+  SMTP_USER: z.string().optional().optional(),
+  SMTP_PASS: z.string().optional(),
   SMTP_FROM: z.string(),
+  BREVO_API_KEY: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
