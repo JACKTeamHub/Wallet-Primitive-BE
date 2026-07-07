@@ -133,6 +133,10 @@ export class NombaService {
         ? `${this.baseUrl}/v1/accounts/virtual/${credentials.subAccountId}`
         : `${this.baseUrl}/v1/accounts/virtual`;
 
+      const webhookUrl =
+        this.configService.get<string>('WEBHOOK_URL') ||
+        'https://jackwalletprimitive.onrender.com/api/v1/webhook/nomba';
+
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -144,6 +148,7 @@ export class NombaService {
           accountRef: params.accountRef,
           accountName: params.accountName,
           bvn: params.bvn || '22222222222',
+          callbackUrl: webhookUrl,
           ...(params.expectedAmount && {
             expectedAmount: params.expectedAmount,
           }),

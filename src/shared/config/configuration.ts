@@ -23,6 +23,7 @@ export const envSchema = z.object({
   SMTP_PASS: z.string().optional(),
   SMTP_FROM: z.string(),
   BREVO_API_KEY: z.string().optional(),
+  WEBHOOK_URL: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
