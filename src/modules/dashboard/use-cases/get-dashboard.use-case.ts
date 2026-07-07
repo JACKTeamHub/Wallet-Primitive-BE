@@ -26,6 +26,7 @@ export class GetDashboardUseCase {
       ledgerTransactionCount,
       recentLedgerEntries,
       walletStatusStats,
+      last7DaysEntries,
     ] = await Promise.all([
       this.prisma.customer.count({ where: { workspaceId } }),
       this.prisma.wallet.count({ where: { workspaceId } }),
@@ -69,6 +70,20 @@ export class GetDashboardUseCase {
         where: { workspaceId },
         _count: { _all: true },
       }),
+      this.prisma.ledgerEntry.findMany({
+        where: {
+          workspaceId,
+          status: 'SUCCESS',
+          createdAt: {
+            gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+          },
+        },
+        select: {
+          amount: true,
+          type: true,
+          createdAt: true,
+        },
+      }),
     ]);
 
     const totalAccounts = walletAccountsCount + tempAccountsCount;
@@ -99,6 +114,36 @@ export class GetDashboardUseCase {
       }
     }
 
+    // Build the 7-day activity series
+    const activitySeries = Array.from({ length: 7 }).map((_, index) => {
+      const date = new Date();
+      date.setDate(date.getDate() - (6 - index));
+      const dateStr = date.toISOString().slice(0, 10);
+      return {
+        day: dateStr,
+        date: dateStr,
+        credits: 0,
+        debits: 0,
+        value: 0,
+        count: 0,
+      };
+    });
+
+    for (const entry of last7DaysEntries) {
+      const dateStr = entry.createdAt.toISOString().slice(0, 10);
+      const point = activitySeries.find((p) => p.day === dateStr);
+      if (point) {
+        const amt = entry.amount.toNumber();
+        point.count += 1;
+        point.value += amt;
+        if (entry.type === 'CREDIT') {
+          point.credits += amt;
+        } else {
+          point.debits += amt;
+        }
+      }
+    }
+
     return {
       metrics: {
         totalCustomers,
@@ -125,6 +170,7 @@ export class GetDashboardUseCase {
         description: entry.description,
         createdAt: entry.createdAt,
       })),
+      activitySeries,
     };
   }
 }
