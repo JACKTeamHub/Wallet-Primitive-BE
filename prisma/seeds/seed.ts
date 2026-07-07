@@ -239,6 +239,49 @@ async function main() {
       });
 
       console.log(`Seeded Wallet ${wallet.accountNumber} for ${customer.name} with 15 ledger entries. Final Balance: NGN ${currentBalance.toFixed(2)}`);
+
+      // Seed Quarantined transactions for the first customer of each workspace (e.g. Tunde Bakare)
+      if (i === 0) {
+        await prisma.ledgerEntry.create({
+          data: {
+            walletId: wallet.id,
+            workspaceId: workspace.id,
+            type: 'CREDIT',
+            amount: 85000.00,
+            runningBalance: currentBalance, // balance doesn't increase for quarantined transactions
+            status: 'QUARANTINED',
+            description: 'Quarantined Deposit: Exceeds single transaction limit of NGN 50,000.00 for TIER_1',
+            nombaRef: `quar_lim_1_${workspace.id.slice(-8)}_${crypto.randomBytes(3).toString('hex')}`,
+            createdAt: new Date(Date.now() - 4 * 3600 * 1000), // 4 hours ago
+            metadata: {
+              senderName: 'Aliko Dangote',
+              senderBankName: 'Access Bank PLC',
+              senderAccountNumber: '3048593021',
+            },
+          },
+        });
+
+        await prisma.ledgerEntry.create({
+          data: {
+            walletId: wallet.id,
+            workspaceId: workspace.id,
+            type: 'CREDIT',
+            amount: 120000.00,
+            runningBalance: currentBalance, // balance doesn't increase
+            status: 'QUARANTINED',
+            description: 'Quarantined Deposit: Exceeds single transaction limit of NGN 50,000.00 for TIER_1',
+            nombaRef: `quar_lim_2_${workspace.id.slice(-8)}_${crypto.randomBytes(3).toString('hex')}`,
+            createdAt: new Date(Date.now() - 2 * 3600 * 1000), // 2 hours ago
+            metadata: {
+              senderName: 'Femi Otedola',
+              senderBankName: 'First Bank of Nigeria',
+              senderAccountNumber: '1029384756',
+            },
+          },
+        });
+        
+        console.log(`Seeded 2 Quarantined transactions for ${customer.name} (Reconciliation Demo Ready).`);
+      }
     }
   }
 
