@@ -5,6 +5,7 @@ export const UpdateKycSchema = z.object({
   kycTier: z.enum(['TIER_1', 'TIER_2', 'TIER_3']),
   bvn: z.string().optional(),
   nin: z.string().optional(),
+  proofOfAddress: z.boolean().optional(),
 });
 
 export class UpdateKycDto extends createZodDto(UpdateKycSchema) {}

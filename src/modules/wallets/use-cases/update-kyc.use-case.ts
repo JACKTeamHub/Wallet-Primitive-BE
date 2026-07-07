@@ -28,9 +28,15 @@ export class UpdateKycUseCase {
       throw new NotFoundException('Wallet not found');
     }
 
-    const bvnToVerify = dto.bvn || wallet.bvn;
-    if (dto.kycTier === 'TIER_2' && !bvnToVerify) {
-      throw new BadRequestException('BVN is required to upgrade to TIER_2');
+    const bvnToVerify = dto.bvn !== undefined ? dto.bvn : wallet.bvn;
+    const ninToVerify = dto.nin !== undefined ? dto.nin : wallet.nin;
+
+    if (dto.kycTier === 'TIER_2' || dto.kycTier === 'TIER_3') {
+      if (!bvnToVerify || !ninToVerify) {
+        throw new BadRequestException(
+          'Both BVN and NIN are required for this KYC tier upgrade',
+        );
+      }
     }
 
     if (bvnToVerify) {
@@ -38,15 +44,6 @@ export class UpdateKycUseCase {
       if (!bvnRegex.test(bvnToVerify)) {
         throw new BadRequestException(
           'Invalid BVN format. Must be exactly 11 digits.',
-        );
-      }
-    }
-
-    const ninToVerify = dto.nin || wallet.nin;
-    if (dto.kycTier === 'TIER_3') {
-      if (!bvnToVerify || !ninToVerify) {
-        throw new BadRequestException(
-          'Both BVN and NIN are required to upgrade to TIER_3',
         );
       }
     }
@@ -60,12 +57,20 @@ export class UpdateKycUseCase {
       }
     }
 
+    if (dto.kycTier === 'TIER_3') {
+      if (!dto.proofOfAddress) {
+        throw new BadRequestException(
+          'Proof of Address document verification is required to upgrade to TIER_3',
+        );
+      }
+    }
+
     const updatedWallet = await this.prisma.wallet.update({
       where: { id: walletId },
       data: {
         kycTier: dto.kycTier,
-        ...(dto.bvn && { bvn: dto.bvn }),
-        ...(dto.nin && { nin: dto.nin }),
+        bvn: dto.bvn !== undefined ? dto.bvn : wallet.bvn,
+        nin: dto.nin !== undefined ? dto.nin : wallet.nin,
       },
     });
 
