@@ -5,18 +5,25 @@ import {
   BadRequestException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { EncryptionService } from '@infrastructure/encryption/encryption.service';
 import { PrismaService } from '@infrastructure/prisma/prisma.service';
 
 @Injectable()
 export class NombaService {
   private readonly logger = new Logger(NombaService.name);
-  private readonly baseUrl = 'https://sandbox.nomba.com';
+  private readonly baseUrl: string;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly encryption: EncryptionService,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    this.baseUrl =
+      this.configService.get<string>('NODE_ENV') === 'production'
+        ? 'https://api.nomba.com'
+        : 'https://sandbox.nomba.com';
+  }
 
   private async getDecryptedCredentials(workspaceId: string) {
     const credentialRecord = await this.prisma.nombaCredential.findUnique({
