@@ -93,14 +93,16 @@ export class WorkspacesController {
 
   @Post('login')
   @ApiOperation({
-    summary: 'Request login verification OTP (Sends code to registered email)',
+    summary: 'Authenticate developer credentials and issue JWT access token',
   })
-  @ApiResponse({ status: 200, description: 'OTP sent to email.' })
+  @ApiResponse({ status: 200, description: 'Authenticated successfully. Returns access token.' })
   @ApiResponse({
     status: 401,
     description: 'Invalid credentials or inactive account',
   })
-  async login(@Body() dto: LoginDto) {
+  async login(
+    @Body() dto: LoginDto,
+  ): Promise<{ access_token: string; workspaceId: string }> {
     return this.loginRequestUseCase.execute(dto);
   }
 

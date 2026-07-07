@@ -5,8 +5,39 @@ import * as crypto from 'crypto';
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
+const customersTemplate = [
+  { name: 'Tunde Bakare', email: 'tunde@bakare.me' },
+  { name: 'Chioma Nnaji', email: 'chioma@nnaji.io' },
+  { name: 'Abubakar Musa', email: 'abubakar@musa.net' },
+  { name: 'Funmi Oyelade', email: 'funmi@oyelade.org' },
+  { name: 'Emeka Okafor', email: 'emeka@okafor.com' },
+  { name: 'Yinka Shonibare', email: 'yinka@shonibare.co' },
+  { name: 'Halima Bello', email: 'halima@bello.dev' },
+  { name: 'Nkem Dilim', email: 'nkem@dilim.com' },
+  { name: 'Olumide Adewale', email: 'olumide@adewale.com' },
+  { name: 'Zainab Kabir', email: 'zainab@kabir.net' },
+];
+
+const creditDescriptions = [
+  'Deposit via Bank Transfer',
+  'Nomba Webhook Deposit',
+  'Invoice payment inflow',
+  'Reconciliation Credit',
+  'Refund for Order #WP-9021',
+  'Merchant settlement funding',
+];
+
+const debitDescriptions = [
+  'Transfer to Bank Account',
+  'Utility Bill Payout',
+  'Airtime Purchase',
+  'Vendor Payout',
+  'Card withdrawal',
+  'System service fee payout',
+];
+
 async function main() {
-  console.log('Seeding database with Wallet Primitive mock structures...');
+  console.log('Seeding database with high-volume Wallet Primitive mock structures...');
 
   const encryptionKey =
     process.env.ENCRYPTION_KEY || 'supersecretencryptionkey12345678';
@@ -26,74 +57,51 @@ async function main() {
     .pbkdf2Sync('password123', salt, 10000, 64, 'sha512')
     .toString('hex')}`;
 
-  // Define workspaces to seed
   const workspacesData = [
     {
       id: 'seed-workspace-chowdeck',
       name: 'Chowdeck Workspace',
-      email: 'dev@chowdeck.com',
+      email: 'dev@chowdeck. wocom',
       rawApiKey: 'wp_live_chowdeck_test_key_123456',
-      customerName: 'John Doe',
-      customerEmail: 'john@chowdeck.com',
-      accountNumber: '1029384756',
-      balance: 120500.0,
-      transactions: [
-        { type: 'CREDIT' as const, amount: 150000.0, desc: 'Investor Funding' },
-        { type: 'DEBIT' as const, amount: 29500.0, desc: 'Payout for Logistics dispatch' }
-      ]
     },
     {
       id: 'seed-workspace-jumia',
       name: 'Jumia Workspace',
       email: 'dev@jumia.com',
       rawApiKey: 'wp_live_jumia_test_key_123456',
-      customerName: 'Mary Smith',
-      customerEmail: 'mary@jumia.com',
-      accountNumber: '5647382910',
-      balance: 450000.0,
-      transactions: [
-        { type: 'CREDIT' as const, amount: 500000.0, desc: 'Store Settlement Payout' },
-        { type: 'DEBIT' as const, amount: 50000.0, desc: 'API Refund for order #JUM-9982' }
-      ]
     },
     {
       id: 'seed-workspace-gig',
       name: 'GIG Logistics Workspace',
       email: 'dev@giglogistics.com',
       rawApiKey: 'wp_live_gig_test_key_123456',
-      customerName: 'David Johnson',
-      customerEmail: 'david@giglogistics.com',
-      accountNumber: '8877665544',
-      balance: 0.0,
-      transactions: [] // Empty wallet ready to receive simulated webhooks
-    }
+    },
   ];
 
-  for (const data of workspacesData) {
-    console.log(`\n--- Seeding ${data.name} ---`);
+  for (const wData of workspacesData) {
+    console.log(`\n--- Seeding Workspace: ${wData.name} ---`);
 
     // 1. Upsert Workspace
     const workspace = await prisma.workspace.upsert({
-      where: { id: data.id },
-      update: { name: data.name },
-      create: { id: data.id, name: data.name },
+      where: { id: wData.id },
+      update: { name: wData.name },
+      create: { id: wData.id, name: wData.name },
     });
 
     // 2. Upsert Developer User
-    const user = await prisma.developerUser.upsert({
-      where: { email: data.email },
+    await prisma.developerUser.upsert({
+      where: { email: wData.email },
       update: { verified: true },
       create: {
-        email: data.email,
+        email: wData.email,
         passwordHash,
         workspaceId: workspace.id,
         verified: true,
       },
     });
-    console.log(`Developer User created: ${user.email} (verified: true)`);
 
     // 3. Upsert API Key
-    const keyHash = crypto.createHash('sha256').update(data.rawApiKey).digest('hex');
+    const keyHash = crypto.createHash('sha256').update(wData.rawApiKey).digest('hex');
     await prisma.apiKey.upsert({
       where: { keyHash },
       update: {},
@@ -103,12 +111,11 @@ async function main() {
         workspaceId: workspace.id,
       },
     });
-    console.log(`API Key seeded: ${data.rawApiKey}`);
 
     // 4. Upsert Nomba Credentials
-    const encryptedClientId = encryptHelper(`client-id-${data.id}`, encryptionKey);
-    const encryptedClientSecret = encryptHelper(`client-secret-${data.id}`, encryptionKey);
-    const encryptedAccountId = encryptHelper(`account-id-${data.id}`, encryptionKey);
+    const encryptedClientId = encryptHelper(`client-id-${wData.id}`, encryptionKey);
+    const encryptedClientSecret = encryptHelper(`client-secret-${wData.id}`, encryptionKey);
+    const encryptedAccountId = encryptHelper(`account-id-${wData.id}`, encryptionKey);
 
     await prisma.nombaCredential.upsert({
       where: { workspaceId: workspace.id },
@@ -125,66 +132,113 @@ async function main() {
       },
     });
 
-    // 5. Upsert Customer
-    const customer = await prisma.customer.upsert({
-      where: {
-        workspaceId_email: {
-          workspaceId: workspace.id,
-          email: data.customerEmail,
+    // Clean up existing ledger entries for wallets in this workspace to seed fresh history
+    const existingWallets = await prisma.wallet.findMany({
+      where: { workspaceId: workspace.id },
+    });
+    for (const ew of existingWallets) {
+      await prisma.ledgerEntry.deleteMany({ where: { walletId: ew.id } });
+    }
+
+    // 5. Seed Customers & Wallets & Ledger History
+    for (let i = 0; i < customersTemplate.length; i++) {
+      const template = customersTemplate[i];
+      const customerEmail = `${wData.id}-${i}-${template.email}`;
+
+      const customer = await prisma.customer.upsert({
+        where: {
+          workspaceId_email: {
+            workspaceId: workspace.id,
+            email: customerEmail,
+          },
         },
-      },
-      update: { name: data.customerName },
-      create: {
-        email: data.customerEmail,
-        name: data.customerName,
-        workspaceId: workspace.id,
-      },
-    });
-    console.log(`Customer created: ${customer.name}`);
+        update: { name: template.name },
+        create: {
+          email: customerEmail,
+          name: template.name,
+          workspaceId: workspace.id,
+        },
+      });
 
-    // 6. Upsert Wallet
-    const wallet = await prisma.wallet.upsert({
-      where: { accountNumber: data.accountNumber },
-      update: { balance: data.balance },
-      create: {
-        customerId: customer.id,
-        workspaceId: workspace.id,
-        accountNumber: data.accountNumber,
-        bankName: 'Nomba Microfinance Bank',
-        balance: data.balance,
-        status: 'ACTIVE',
-      },
-    });
-    console.log(`Persistent Wallet created: ${wallet.accountNumber} (Balance: NGN ${wallet.balance})`);
+      // Generate a static but unique account number for this seed customer
+      const customerSeedAccount = `99${(10000000 + i * 7 + wData.name.length * 31).toString().slice(0, 8)}`;
+      const wallet = await prisma.wallet.upsert({
+        where: { accountNumber: customerSeedAccount },
+        update: { status: 'ACTIVE' },
+        create: {
+          customerId: customer.id,
+          workspaceId: workspace.id,
+          accountNumber: customerSeedAccount,
+          bankName: 'Nombank Sandbox Bank',
+          balance: 0.0,
+          status: 'ACTIVE',
+        },
+      });
 
-    // 7. Seed Ledger Entries
-    const existingLedgerCount = await prisma.ledgerEntry.count({
-      where: { walletId: wallet.id },
-    });
+      // Generate 15 sorted random dates
+      const dates: Date[] = [];
+      for (let t = 0; t < 15; t++) {
+        const backdays = 14 - t;
+        const date = new Date();
+        date.setDate(date.getDate() - backdays);
+        date.setHours(Math.floor(Math.random() * 24), Math.floor(Math.random() * 60));
+        dates.push(date);
+      }
+      dates.sort((a, b) => a.getTime() - b.getTime());
 
-    if (existingLedgerCount === 0 && data.transactions.length > 0) {
-      let currentRunningBalance = 0;
-      for (const tx of data.transactions) {
-        if (tx.type === 'CREDIT') {
-          currentRunningBalance += tx.amount;
+      // Generate transactions in chronological order
+      let currentBalance = 25000.0; // Start with NGN 25,000 starting cash context
+
+      // Create an initial deposit transaction on the first date
+      await prisma.ledgerEntry.create({
+        data: {
+          walletId: wallet.id,
+          workspaceId: workspace.id,
+          type: 'CREDIT',
+          amount: 25000.0,
+          runningBalance: currentBalance,
+          status: 'SUCCESS',
+          description: 'Initial Wallet Provisioning Deposit',
+          nombaRef: `seed_tx_${crypto.randomBytes(6).toString('hex')}`,
+          createdAt: dates[0],
+        },
+      });
+
+      for (let t = 1; t < 15; t++) {
+        const isCredit = Math.random() > 0.4 || currentBalance < 15000.0;
+        const amount = Math.round(500.0 + Math.random() * 9500.0); // NGN 500 to NGN 10,000
+        
+        let desc = '';
+        if (isCredit) {
+          currentBalance += amount;
+          desc = creditDescriptions[Math.floor(Math.random() * creditDescriptions.length)];
         } else {
-          currentRunningBalance -= tx.amount;
+          currentBalance -= amount;
+          desc = debitDescriptions[Math.floor(Math.random() * debitDescriptions.length)];
         }
 
         await prisma.ledgerEntry.create({
           data: {
             walletId: wallet.id,
             workspaceId: workspace.id,
-            type: tx.type,
-            amount: tx.amount,
-            runningBalance: currentRunningBalance,
+            type: isCredit ? 'CREDIT' : 'DEBIT',
+            amount: amount,
+            runningBalance: currentBalance,
             status: 'SUCCESS',
-            description: tx.desc,
+            description: desc,
             nombaRef: `seed_tx_${crypto.randomBytes(6).toString('hex')}`,
+            createdAt: dates[t],
           },
         });
       }
-      console.log(`Seeded ${data.transactions.length} ledger entries.`);
+
+      // Sync wallet balance to final ledger balance
+      await prisma.wallet.update({
+        where: { id: wallet.id },
+        data: { balance: currentBalance },
+      });
+
+      console.log(`Seeded Wallet ${wallet.accountNumber} for ${customer.name} with 15 ledger entries. Final Balance: NGN ${currentBalance.toFixed(2)}`);
     }
   }
 

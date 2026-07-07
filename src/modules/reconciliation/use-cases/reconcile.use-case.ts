@@ -114,6 +114,7 @@ export class ReconcileUseCase {
             type: 'CREDIT',
             amount,
             runningBalance: newBalance,
+            status: 'SUCCESS',
             description: `Reconciliation manual credit for reference: ${transactionId}`,
           },
         });
@@ -174,6 +175,7 @@ export class ReconcileUseCase {
             type: 'DEBIT',
             amount,
             runningBalance: newBalance,
+            status: 'SUCCESS',
             description: `Reconciliation refund debit for reference: ${transactionId}`,
           },
         });

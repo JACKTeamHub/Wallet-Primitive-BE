@@ -23,14 +23,14 @@ export class TransferUseCase {
   ): Promise<{
     transactionGroupId: string;
     amount: number;
-    senderWalletId: string;
-    recipientWalletId: string;
+    senderAccountNumber: string;
+    recipientAccountNumber: string;
     status: string;
     timestamp: Date;
   }> {
-    if (dto.senderWalletId === dto.recipientWalletId) {
+    if (dto.senderAccountNumber === dto.recipientAccountNumber) {
       throw new BadRequestException(
-        'Sender and recipient wallets must be different',
+        'Sender and recipient account numbers must be different',
       );
     }
 
@@ -38,14 +38,14 @@ export class TransferUseCase {
 
     return this.prisma.$transaction(async (tx) => {
       const sender = await tx.wallet.findFirst({
-        where: { id: dto.senderWalletId, workspaceId },
+        where: { accountNumber: dto.senderAccountNumber, workspaceId },
       });
       if (!sender) {
         throw new NotFoundException('Sender wallet not found');
       }
 
       const recipient = await tx.wallet.findFirst({
-        where: { id: dto.recipientWalletId, workspaceId },
+        where: { accountNumber: dto.recipientAccountNumber, workspaceId },
       });
       if (!recipient) {
         throw new NotFoundException('Recipient wallet not found');
@@ -126,6 +126,7 @@ export class TransferUseCase {
           type: 'DEBIT',
           amount: transferAmount,
           runningBalance: newSenderBalance,
+          status: 'SUCCESS',
           description:
             dto.description || `Transfer to ${recipient.accountNumber}`,
           transactionGroupId,
@@ -142,6 +143,7 @@ export class TransferUseCase {
           type: 'CREDIT',
           amount: transferAmount,
           runningBalance: newRecipientBalance,
+          status: 'SUCCESS',
           description:
             dto.description || `Transfer from ${sender.accountNumber}`,
           transactionGroupId,
@@ -156,8 +158,8 @@ export class TransferUseCase {
         entityId: transactionGroupId,
         actor: 'DeveloperConsole',
         metadata: {
-          senderWalletId: sender.id,
-          recipientWalletId: recipient.id,
+          senderAccountNumber: sender.accountNumber,
+          recipientAccountNumber: recipient.accountNumber,
           amount: transferAmount.toNumber(),
         },
       });
@@ -165,8 +167,8 @@ export class TransferUseCase {
       return {
         transactionGroupId,
         amount: dto.amount,
-        senderWalletId: sender.id,
-        recipientWalletId: recipient.id,
+        senderAccountNumber: sender.accountNumber,
+        recipientAccountNumber: recipient.accountNumber,
         status: 'SUCCESS',
         timestamp: creditLeg.createdAt,
       };

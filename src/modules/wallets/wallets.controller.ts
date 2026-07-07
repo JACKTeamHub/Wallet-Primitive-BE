@@ -78,8 +78,8 @@ export class WalletsController {
   ): Promise<{
     transactionGroupId: string;
     amount: number;
-    senderWalletId: string;
-    recipientWalletId: string;
+    senderAccountNumber: string;
+    recipientAccountNumber: string;
     status: string;
     timestamp: Date;
   }> {

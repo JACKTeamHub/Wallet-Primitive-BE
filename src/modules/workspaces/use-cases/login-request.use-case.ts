@@ -1,8 +1,10 @@
 import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { PrismaService } from '@infrastructure/prisma/prisma.service';
 import { LoginDto } from '../dto/login.dto';
-import { EmailService } from '@infrastructure/email/email.service';
 import { comparePassword } from '@shared/utils/hash.util';
+import { ConfigService } from '@nestjs/config';
+import { AuditLogService } from '@shared/services/audit-log.service';
+import * as jwt from 'jsonwebtoken';
 
 @Injectable()
 export class LoginRequestUseCase {
@@ -10,10 +12,13 @@ export class LoginRequestUseCase {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly emailService: EmailService,
+    private readonly configService: ConfigService,
+    private readonly audit: AuditLogService,
   ) {}
 
-  async execute(dto: LoginDto): Promise<{ message: string }> {
+  async execute(
+    dto: LoginDto,
+  ): Promise<{ access_token: string; workspaceId: string }> {
     const user = await this.prisma.developerUser.findUnique({
       where: { email: dto.email },
     });
@@ -32,27 +37,21 @@ export class LoginRequestUseCase {
       );
     }
 
-    // Generate 6-digit login OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+    const jwtSecret = this.configService.get<string>('JWT_SECRET')!;
+    const access_token = jwt.sign(
+      { userId: user.id, email: user.email, workspaceId: user.workspaceId },
+      jwtSecret,
+      { expiresIn: '1d' },
+    );
 
-    if (process.env.NODE_ENV !== 'production') {
-      this.logger.log(
-        `[Login OTP] Generated OTP token for ${dto.email}: ${otp}`,
-      );
-    }
-
-    await this.prisma.developerUser.update({
-      where: { id: user.id },
-      data: {
-        otpCode: otp,
-        otpExpiresAt,
-      },
+    void this.audit.log({
+      workspaceId: user.workspaceId,
+      action: 'DEVELOPER_LOGIN',
+      entity: 'DeveloperUser',
+      entityId: user.id,
+      actor: user.email,
     });
 
-    // Queue OTP email via BullMQ
-    await this.emailService.sendOtpEmail(user.email, otp);
-
-    return { message: 'Security verification OTP sent to your email.' };
+    return { access_token, workspaceId: user.workspaceId };
   }
 }

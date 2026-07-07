@@ -212,6 +212,7 @@ export class HandleNombaWebhookUseCase {
               type: 'CREDIT',
               amount: creditAmount,
               runningBalance: newBalance,
+              status: 'SUCCESS',
               nombaRef: transactionId,
               sessionId: sessionId || null,
               description: narration || `Nomba Webhook Deposit of ${amount}`,
