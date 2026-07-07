@@ -3,6 +3,7 @@ import { Job } from 'bullmq';
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@infrastructure/prisma/prisma.service';
+import * as nodemailer from 'nodemailer';
 
 @Processor('email-delivery')
 export class EmailProcessor extends WorkerHost {
@@ -22,13 +23,15 @@ export class EmailProcessor extends WorkerHost {
         `[EmailProcessor] Processing job ${job.id} of type "${type}" for ${email}`,
       );
 
-      const apiKey = this.configService.get<string>('RESEND_API_KEY');
-      const from =
-        this.configService.get<string>('SMTP_FROM') || 'onboarding@resend.dev';
+      const from = this.configService.get<string>('SMTP_FROM');
+      const host = this.configService.get<string>('SMTP_HOST');
+      const port = this.configService.get<number>('SMTP_PORT');
+      const user = this.configService.get<string>('SMTP_USER');
+      const pass = this.configService.get<string>('SMTP_PASS');
 
-      if (!apiKey) {
+      if (!host || !user || !pass || !from) {
         throw new Error(
-          'RESEND_API_KEY is missing in environment variables. Please define it in your Render settings.',
+          'SMTP credentials (host, user, pass, from) are missing in environment variables. Please configure them in your settings.',
         );
       }
 
@@ -72,34 +75,29 @@ export class EmailProcessor extends WorkerHost {
       }
 
       this.logger.log(
-        `[EmailProcessor] Sending email via Resend API to ${email}`,
+        `[EmailProcessor] Sending email via SMTP to ${email}`,
       );
 
-      const response = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
+      const transporter = nodemailer.createTransport({
+        host,
+        port,
+        secure: port === 465, // true for 465, false for 587
+        auth: {
+          user,
+          pass,
         },
-        body: JSON.stringify({
-          from,
-          to: email,
-          subject,
-          html: htmlContent,
-        }),
       });
 
-      const responseData = await response.json();
+      const info = await transporter.sendMail({
+        from,
+        to: email,
+        subject,
+        html: htmlContent,
+      });
 
-      if (!response.ok) {
-        throw new Error(
-          `Resend API error (${response.status}): ${JSON.stringify(responseData)}`,
-        );
-      }
-
-      const messageId = responseData.id;
+      const messageId = info.messageId;
       this.logger.log(
-        `[EmailProcessor] Email sent successfully via Resend. Message ID: ${messageId}`,
+        `[EmailProcessor] Email sent successfully via SMTP. Message ID: ${messageId}`,
       );
 
       return { messageId };

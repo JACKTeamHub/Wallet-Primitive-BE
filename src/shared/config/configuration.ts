@@ -17,7 +17,11 @@ export const envSchema = z.object({
     .string()
     .length(32, 'Encryption key must be exactly 32 bytes'),
   JWT_SECRET: z.string(),
-  SMTP_FROM: z.string().default('onboarding@resend.dev'),
+  SMTP_HOST: z.string().default('smtp.gmail.com'),
+  SMTP_PORT: z.coerce.number().default(465),
+  SMTP_USER: z.string(),
+  SMTP_PASS: z.string(),
+  SMTP_FROM: z.string(),
 });
 
 export type Env = z.infer<typeof envSchema>;
