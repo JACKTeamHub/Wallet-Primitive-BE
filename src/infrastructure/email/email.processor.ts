@@ -23,7 +23,8 @@ export class EmailProcessor extends WorkerHost {
       );
 
       const apiKey = this.configService.get<string>('RESEND_API_KEY');
-      const from = this.configService.get<string>('SMTP_FROM') || 'onboarding@resend.dev';
+      const from =
+        this.configService.get<string>('SMTP_FROM') || 'onboarding@resend.dev';
 
       if (!apiKey) {
         throw new Error(
@@ -88,7 +89,7 @@ export class EmailProcessor extends WorkerHost {
         }),
       });
 
-      const responseData = (await response.json()) as any;
+      const responseData = await response.json();
 
       if (!response.ok) {
         throw new Error(
