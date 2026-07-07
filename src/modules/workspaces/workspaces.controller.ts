@@ -95,7 +95,10 @@ export class WorkspacesController {
   @ApiOperation({
     summary: 'Authenticate developer credentials and issue JWT access token',
   })
-  @ApiResponse({ status: 200, description: 'Authenticated successfully. Returns access token.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Authenticated successfully. Returns access token.',
+  })
   @ApiResponse({
     status: 401,
     description: 'Invalid credentials or inactive account',

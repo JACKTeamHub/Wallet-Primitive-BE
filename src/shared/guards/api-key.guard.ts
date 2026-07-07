@@ -50,7 +50,9 @@ export class ApiKeyGuard implements CanActivate {
 
     // 2. Programmatic API key check (x-api-key)
     if (!apiKey || typeof apiKey !== 'string') {
-      throw new UnauthorizedException('Missing x-api-key or authorization header');
+      throw new UnauthorizedException(
+        'Missing x-api-key or authorization header',
+      );
     }
 
     const keyHash = crypto.createHash('sha256').update(apiKey).digest('hex');

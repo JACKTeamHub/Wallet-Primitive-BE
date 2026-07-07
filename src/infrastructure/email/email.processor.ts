@@ -74,9 +74,7 @@ export class EmailProcessor extends WorkerHost {
         `;
       }
 
-      this.logger.log(
-        `[EmailProcessor] Sending email via SMTP to ${email}`,
-      );
+      this.logger.log(`[EmailProcessor] Sending email via SMTP to ${email}`);
 
       const transporter = nodemailer.createTransport({
         host,
