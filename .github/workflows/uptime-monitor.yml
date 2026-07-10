@@ -1,0 +1,26 @@
+name: Uptime Monitor
+
+on:
+  schedule:
+    # Runs every 12 minutes to beat Render's 15-minute sleep timer
+    - cron: '*/12 * * * *'
+  workflow_dispatch: # Allows manual triggering from the Actions tab
+
+jobs:
+  ping-targets:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping API and Web Endpoints
+        run: |
+          # Define your list of URLs here separated by spaces
+          URLS=(
+            "https://jackwalletprimitive.onrender.com/"
+            "https://jackwalletprimitive.onrender.com/api"
+          )
+          
+          for url in "${URLS[@]}"; do
+            echo "Pinging: $url"
+            # -s (silent), -I (fetch headers only), -L (follow redirects)
+            curl -sIL "$url" | head -n 1
+            echo "------------------------------"
+          done
