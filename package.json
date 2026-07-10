@@ -17,10 +17,10 @@
   "license": "UNLICENSED",
   "scripts": {
     "prebuild": "pnpm run db:generate",
-    "build": "nest build",
+    "build": "node api.js && nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "dotenvx run -- nest start",
+    "start": "node api.js && dotenvx run -- nest start",
     "start:dev": "dotenvx run -- nest start --watch",
     "start:debug": "dotenvx run -- nest start --debug --watch",
     "start:prod": "dotenvx run -- node dist/src/main",
