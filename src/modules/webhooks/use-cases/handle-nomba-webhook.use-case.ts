@@ -104,7 +104,7 @@ export class HandleNombaWebhookUseCase {
       });
 
       if (wallet) {
-        const creditAmount = new Prisma.Decimal(amount);
+        const creditAmount = new Prisma.Decimal(amount).div(100);
 
         const limits = KYC_LIMITS[wallet.kycTier];
         const startOfDay = new Date();
@@ -254,7 +254,7 @@ export class HandleNombaWebhookUseCase {
           };
         }
 
-        const creditAmount = new Prisma.Decimal(amount);
+        const creditAmount = new Prisma.Decimal(amount).div(100);
 
         await this.prisma.$transaction(async (tx) => {
           const currentTempAccount = await tx.temporaryAccount.findUnique({
