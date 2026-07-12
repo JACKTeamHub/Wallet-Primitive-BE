@@ -242,7 +242,8 @@ export class NombaService {
       const body = await response.json();
       const txData = body.data || {};
       const status = txData.status === 'SUCCESS' ? 'SUCCESS' : 'FAILED';
-      const amount = txData.amount || 0;
+      const amountInKobo = txData.amount || 0;
+      const amount = amountInKobo / 100; // Convert from Kobo to Naira
       const aliasAccountNumber = txData.aliasAccountNumber || undefined;
 
       return { status, amount, aliasAccountNumber };
